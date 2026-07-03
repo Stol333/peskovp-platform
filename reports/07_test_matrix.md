@@ -1,0 +1,53 @@
+# 07 Test Matrix
+
+## Phase 0 Checks
+- Local artifact creation: passed.
+- Production server changes: none.
+
+## Phase 1 Checks
+- Read-only audit command bundle prepared: passed.
+- Raw server snapshot collected: passed (`reports/01_server_audit_raw.txt`).
+- Production server changes: none.
+
+## Phase 2 Checks
+- Official sources verification: passed (`reports/03_research_sources.md`).
+- Architecture decisions documented: passed (`reports/04_architecture_decision_record.md`).
+- Audit-to-decision traceability: passed (Phase 1 findings reflected in ADR).
+- Production server changes: none.
+
+## Phase 3 Checks
+- Phase 3 script scaffold created: passed (`infra/scripts/phase3_backup_and_config_apply.ps1`).
+- Backup/rollback runbook documents updated: passed.
+- Manifest switched from pending to in-progress with executable commands: passed.
+- `Prepare` mode execution: passed (`artifacts/phase3/20260703-140202`, `artifacts/phase3/20260703-140720`).
+- `Apply` mode execution: blocked/interrupted (`artifacts/phase3/20260703-140234`).
+- Script hardening after blocker: passed (non-interactive SSH options, targeted DB discovery, marker parsing).
+- `Apply` mode execution (post-fixes): passed (`artifacts/phase3/20260703-151518`).
+- Backup artifact integrity check: passed (system/network/services/packages/containers/app trees present).
+- Production server changes in this step: backup execution completed; configuration-altering changes не выполнялись.
+
+## Phase 4 Checks
+- Phase 4 deployment script execution: passed (`artifacts/phase4/20260703-152642`).
+- Safe upgrade strategy: passed (only non-excluded packages upgraded).
+- VPN service continuity: passed (all critical services active before/after).
+- Xray version invariance: passed (`26.2.6` before = `26.2.6` after).
+- Nginx config validation: passed (`nginx -t` successful).
+- Post-upgrade package state: passed (no remaining upgradable packages in run output).
+
+## Phase 5 Checks
+- Phase 5 final validation script execution: passed (`artifacts/phase5/20260703-153401`).
+- Final result gate: passed (`PHASE5_RESULT=PASS`).
+- Critical services state: passed (`active` + `enabled` for all target services).
+- Systemd failed units check: passed (`0 loaded units listed`).
+- Nginx syntax/config check: passed (`nginx -t` successful).
+- Firewall baseline check: passed (`ufw active`, default deny incoming).
+- Fail2ban baseline check: passed (`3x-ipl`, `sshd` jails active).
+- Package drift check: passed (`apt list --upgradable` => only `Listing...`).
+- VPN core continuity check: passed (`Xray 26.2.6`).
+
+## Phase 6 Checks
+- Scaffold directories creation: passed (`apps/`, `services/`, `integrations/`, `docker/`, `docs/`, `tests/`).
+- Baseline templates creation: passed (`README.md`, `.gitignore`, `.env.example`, `infra/config/app.example.yaml`).
+- Secrets hygiene check: passed (только placeholder значения, без реальных токенов/ключей).
+- Production safety check: passed (локальный scaffold, без production-изменений).
+
