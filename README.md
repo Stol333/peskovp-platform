@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 10 — Nginx/SSL/domain integration (completed)`.
+Текущий этап: `Phase 11 — Security hardening (completed)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -25,4 +25,4 @@
 - Фазовые технические отчёты: `reports/*.md`
 
 ## Следующий этап
-`Phase 11 — Security hardening`.
+`Phase 12 — Testing`.

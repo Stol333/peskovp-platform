@@ -189,3 +189,22 @@
 - Фаза 10 закрыта по результатам реализации артефактов и успешных регрессионных тестов; runtime edge smoke-check перенесён в следующий этап при доступном Docker runtime.
 - Production-контур не модифицировался (локальные инфраструктурные артефакты).
 
+## Phase 11 (execution, completed)
+- Реализован server-side security hardening через скрипт:
+  - `infra/scripts/phase11_security_hardening.ps1`
+- Выполнен remote apply (с backup-before-change и артефактами):
+  - `pwsh -NoProfile -File C:\\Users\\dgafa\\infra\\scripts\\phase11_security_hardening.ps1 -RemoteHost 91.202.0.193 -RemoteUser root -SshKeyPath C:\\Users\\dgafa\\.ssh\\spain_new`
+  - локальные артефакты: `artifacts/phase11/20260703-181856`
+  - remote run base: `/root/backups/peskovp-phase11-hardening-20260703-181859`
+  - результат: `PHASE11_RESULT=PASS`
+- Применённые меры hardening на сервере:
+  - SSH: include `/etc/ssh/sshd_config.d/99-peskovp-hardening.conf` (`MaxAuthTries`, `LoginGraceTime`, `MaxStartups`, keepalive параметры).
+  - Fail2ban: jail `/etc/fail2ban/jail.d/10-peskovp-sshd.local` (aggressive mode, retry/findtime/bantime baseline).
+  - Nginx: include `/etc/nginx/conf.d/zz-peskovp-hardening.conf` (timeouts, TLS baseline, security headers, `server_tokens off`).
+  - UFW: включён rate limiting на SSH (`22/tcp LIMIT IN`, включая v6).
+- Проверки после применения:
+  - `ssh=active`, `nginx=active`, `fail2ban=active`;
+  - `nginx -t` successful;
+  - `fail2ban-client status sshd` active без текущих блокировок;
+  - `ufw status verbose` отражает `22/tcp LIMIT IN`.
+

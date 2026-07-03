@@ -18,14 +18,14 @@
 - [x] 08 Read-only VPN integration
 - [x] 09 Docker Compose infrastructure
 - [x] 10 Nginx/SSL/domain integration
-- [ ] 11 Security hardening
+- [x] 11 Security hardening
 - [ ] 12 Testing
 - [ ] 13 Node-by-node debugging
 - [ ] 14 Documentation
 - [ ] 15 Final report
 
 ## Current Gate
-Phase 10 completed (Nginx/SSL/domain artifacts implemented and regression-tested). Next phase: 11 Security hardening.
+Phase 11 completed (server hardening applied and validated). Next phase: 12 Testing.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.
