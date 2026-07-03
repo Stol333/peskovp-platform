@@ -172,3 +172,20 @@
 - Фаза 9 закрыта по результатам реализации артефактов и статических/модульных проверок; runtime compose smoke-check перенесён в следующий этап при доступном Docker runtime.
 - Production-контур не модифицировался.
 
+## Phase 10 (execution, completed)
+- Реализован Nginx/SSL/domain слой поверх compose-инфраструктуры.
+- Добавлены/обновлены артефакты:
+  - `docker/docker-compose.yml` (services `nginx-gateway`, `certbot`, internal exposure для `ai-module`);
+  - `docker/docker-compose.override.yml` (dev port mapping для `ai-module`);
+  - `docker/env/nginx.env.example`;
+  - `infra/nginx/templates/peskovp.conf.template`;
+  - `infra/nginx/includes/ssl-params.conf`;
+  - `infra/nginx/README.md`;
+  - обновлён `docker/README.md` под runbook Phase 10.
+- Валидация на текущем окружении:
+  - `docker compose version` и `docker compose ... config` — blocked (`docker` не найден в shell окружении);
+  - `python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests` — `3 passed`;
+  - `python -m pytest C:\\Users\\dgafa\\integrations\\vpn\\tests` — `6 passed`.
+- Фаза 10 закрыта по результатам реализации артефактов и успешных регрессионных тестов; runtime edge smoke-check перенесён в следующий этап при доступном Docker runtime.
+- Production-контур не модифицировался (локальные инфраструктурные артефакты).
+

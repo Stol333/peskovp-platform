@@ -72,3 +72,12 @@
 - Phase completion decision: accepted for Phase 09 scope with documented runtime constraint on current host session.
 - Production safety: passed (локальные инфраструктурные изменения, без production runtime-действий).
 
+## Phase 10 Checks (completed)
+- Nginx/SSL/domain compose artifacts: passed (Nginx templates, SSL params, compose gateway/certbot, env scaffold).
+- Runtime edge validation (`docker compose config`, `nginx -t`, HTTPS handshake): blocked on current host (`docker` command not found).
+- AI module regression tests: passed (`3 passed`).
+- VPN integration regression tests: passed (`6 passed`).
+- Secrets hygiene: passed (только шаблоны env, без секретов).
+- Phase completion decision: accepted for Phase 10 scope with documented Docker runtime constraint.
+- Production safety: passed (изменения только в локальных конфигурационных артефактах).
+

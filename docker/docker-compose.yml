@@ -7,8 +7,8 @@ services:
     image: peskovp/ai-module:phase09
     env_file:
       - ./env/ai-module.env.example
-    ports:
-      - "127.0.0.1:8787:8787"
+    expose:
+      - "8787"
     volumes:
       - ai_module_logs:/app/services/ai-module/logs
       - ./healthchecks/ai_module_healthcheck.py:/opt/healthchecks/ai_module_healthcheck.py:ro
@@ -34,9 +34,58 @@ services:
     networks:
       - peskovp_internal
 
+  nginx-gateway:
+    image: nginx:1.27-alpine
+    env_file:
+      - ./env/nginx.env.example
+    depends_on:
+      ai-module:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../infra/nginx/templates/peskovp.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ../infra/nginx/includes:/etc/nginx/includes:ro
+      - certbot_certs:/etc/letsencrypt
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/nginx-health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - peskovp_internal
+
+  certbot:
+    profiles: ["certbot"]
+    image: certbot/certbot:latest
+    env_file:
+      - ./env/nginx.env.example
+    ports:
+      - "80:80"
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+    entrypoint: >
+      sh -c "certbot certonly
+      --non-interactive
+      --agree-tos
+      --email $${LETSENCRYPT_EMAIL}
+      --standalone
+      --preferred-challenges http
+      -d $${APP_DOMAIN}
+      -d $${AI_DOMAIN}
+      --cert-name $${TLS_CERT_NAME}
+      --keep-until-expiring"
+    networks:
+      - peskovp_internal
+
 volumes:
   ai_module_logs:
     name: peskovp_ai_module_logs
+  certbot_certs:
+    name: peskovp_certbot_certs
 
 networks:
   peskovp_internal:

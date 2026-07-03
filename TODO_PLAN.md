@@ -17,7 +17,7 @@
 - [x] 07 AI module
 - [x] 08 Read-only VPN integration
 - [x] 09 Docker Compose infrastructure
-- [ ] 10 Nginx/SSL/domain integration
+- [x] 10 Nginx/SSL/domain integration
 - [ ] 11 Security hardening
 - [ ] 12 Testing
 - [ ] 13 Node-by-node debugging
@@ -25,7 +25,7 @@
 - [ ] 15 Final report
 
 ## Current Gate
-Phase 9 completed (Docker Compose infrastructure implemented, documented and validated at code/test level). Next phase: 10 Nginx/SSL/domain integration.
+Phase 10 completed (Nginx/SSL/domain artifacts implemented and regression-tested). Next phase: 11 Security hardening.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.

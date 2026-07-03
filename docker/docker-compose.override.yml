@@ -5,6 +5,8 @@ services:
       APP_ENV: development
       AI_STREAMING_ENABLED: "true"
       AI_USAGE_LOG_PATH: /app/services/ai-module/logs/usage.jsonl
+    ports:
+      - "127.0.0.1:8787:8787"
     volumes:
       - ../services/ai-module:/app/services/ai-module
       - ai_module_logs:/app/services/ai-module/logs
