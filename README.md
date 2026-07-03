@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 12 — Testing (in progress)`.
+Текущий этап: `Phase 15 — Final report (in progress)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -29,8 +29,43 @@
   - `integrations/vpn/tests` — `6 passed`;
   - compile check `services/ai-module/src` и `integrations/vpn/src/vpn_readonly` — успешно.
 - Выполнены server-side security regression проверки (read-only): активность `ssh/nginx/fail2ban`, наличие hardening-конфигов, `sshd -t`, `nginx -t`, `ufw` SSH `LIMIT`, `fail2ban sshd` jail.
-- Инфраструктурный compose smoke-check остаётся ограничен текущим окружением до доступного Docker runtime.
+- Блокер `docker compose` снят: установлены `Docker.DockerCompose` и `Docker.DockerDesktop`, `docker compose version` и `docker compose ... config` проходят успешно.
+- Runtime запуск edge-сервисов (`docker compose ... up -d ai-module nginx-gateway`) на текущем хосте падает с `Docker Desktop is unable to start` (desktop status: `stopped`).
+- По решению пользователя Docker runtime smoke-check на этом хосте пропущен (waiver), без остановки этапа.
 - Фактические результаты зафиксированы в `reports/07_test_matrix.md` и `reports/05_implementation_log.md`.
+- Фаза 12 закрыта с документированным waiver по локальному Docker runtime.
+## Статус Phase 13 (Node-by-node debugging)
+- Выполнена read-only узловая диагностика production-контура:
+  - critical services `nginx/x-ui/peskovp-sub/peskovp-hy2/peskovp-hy2-obfs/peskovp-hy2-advanced/fail2ban/ssh` — `active`;
+  - `systemctl --failed` — пусто;
+  - `peskovp-hy2-sync.timer` — `active`, последний запуск `peskovp-hy2-sync.service` завершился `status=0/SUCCESS`.
+- Проверены operational узлы:
+  - `systemd-networkd-wait-online.service` в текущем boot цикле `skipped` по condition (без активного timeout-инцидента);
+  - SSH preauth noise за последние 24 часа: `SSH_ERR_TOTAL=22`, `SSH_KEX_COUNT=19`, `SSH_PROTOCOL_MISMATCH_COUNT=1`, `SSH_CONN_RESET_COUNT=1`.
+- Локальные прикладные узлы подтверждены:
+  - `python -m pytest services/ai-module/tests integrations/vpn/tests` — `9 passed`;
+  - `python -m compileall services/ai-module/src integrations/vpn/src/vpn_readonly` — успешно.
+- Docker runtime на текущем хосте остаётся non-operational (`docker compose up` -> `Docker Desktop is unable to start`; desktop logs указывают на precondition `Virtual Machine Platform not enabled`), и по решению пользователя этот runtime-блок оставлен в waiver без блокировки Phase 13.
+- Phase 13 закрыта, результаты зафиксированы в `reports/07_test_matrix.md` и `reports/05_implementation_log.md`.
+## Статус Phase 14 (Documentation)
+- Обновлён документационный хаб `docs/README.md` с актуальной структурой и статусом проекта.
+- Добавлены целевые документы:
+  - `docs/architecture/overview.md`
+  - `docs/api/ai-module.md`
+  - `docs/api/vpn-readonly.md`
+  - `docs/runbooks/node-by-node-debugging.md`
+  - `docs/operations/docker-runtime-waiver.md`
+- Документация синхронизируется с фазовой отчётностью (`reports/05_implementation_log.md`, `reports/07_test_matrix.md`) и текущим gate в `TODO_PLAN.md`.
+- Runtime ограничение Docker на текущем хосте явно задокументировано как operational waiver.
+- Phase 14 закрыта: документационный набор переведён из scaffold в рабочий вид.
+## Статус Phase 15 (Final report)
+- Финальный отчёт переведён в актуальный формат полного цикла (Phase 0-14) в `reports/09_final_report.md`.
+- В отчёт включены:
+  - итоги по безопасному выполнению фаз;
+  - подтверждённые результаты тестирования и node-by-node debugging;
+  - зафиксированный Docker runtime waiver на текущем хосте;
+  - набор рекомендаций для post-phase развития.
+- Phase 15 находится в работе до финального согласования и публикации.
 
 ## Следующий этап
-`Phase 13 — Node-by-node debugging` (после завершения Phase 12).
+`Phase 15 — Final report` (финализация и публикация).

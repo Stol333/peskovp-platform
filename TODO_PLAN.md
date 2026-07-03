@@ -19,13 +19,13 @@
 - [x] 09 Docker Compose infrastructure
 - [x] 10 Nginx/SSL/domain integration
 - [x] 11 Security hardening
-- [ ] 12 Testing
-- [ ] 13 Node-by-node debugging
-- [ ] 14 Documentation
+- [x] 12 Testing
+- [x] 13 Node-by-node debugging
+- [x] 14 Documentation
 - [ ] 15 Final report
 
 ## Current Gate
-Phase 12 in progress (local regression passed, security regression passed, compose runtime-check blocked by unavailable Docker runtime).
+Phase 15 in progress (final report updated to full-cycle draft and pending final publish).
 ## Phase 12 Preparation
 - Entry condition confirmed: Phase 11 hardening завершён, верифицирован и влит в `master`.
 - Test scope for Phase 12:
@@ -39,7 +39,38 @@ Phase 12 in progress (local regression passed, security regression passed, compo
 - Локальный regression/unit прогон: `services/ai-module/tests` (`3 passed`), `integrations/vpn/tests` (`6 passed`).
 - Compile check: `services/ai-module/src` и `integrations/vpn/src/vpn_readonly` — успешно.
 - Security regression (server-side, read-only): `ssh/nginx/fail2ban active`, hardening-конфиги присутствуют, `sshd -t`/`nginx -t` успешны, `ufw` содержит `22/tcp LIMIT IN`, `fail2ban sshd` jail активен.
-- Инфраструктурный compose smoke-check: blocked (Docker runtime недоступен в текущем окружении).
+- Compose dependency resolution: установлен `Docker.DockerCompose` (v5.3.0), `docker compose ... config` (base/override + profiles) проходит с кодом `0`.
+- Локальный Docker runtime: `docker compose ... up -d ai-module nginx-gateway` завершился ошибкой `Docker Desktop is unable to start`, `docker desktop status` = `stopped`.
+- По решению пользователя Docker runtime smoke-check на текущем хосте пропущен (waiver), Phase 12 закрыта.
+## Phase 13 Progress
+- Узловая read-only диагностика production-контура выполнена: `systemctl --failed` пусто, критичные сервисы (`nginx/x-ui/peskovp-sub/peskovp-hy2/peskovp-hy2-obfs/peskovp-hy2-advanced/fail2ban/ssh`) активны.
+- Узел `peskovp-hy2-sync`: `timer` активен, последний service run завершился `status=0/SUCCESS`.
+- Узел `systemd-networkd-wait-online`: в текущем boot цикле `skipped` по condition, новых timeout-инцидентов не выявлено.
+- SSH-noise метрики за 24 часа собраны: `SSH_ERR_TOTAL=22`, `SSH_KEX_COUNT=19`, `SSH_PROTOCOL_MISMATCH_COUNT=1`, `SSH_CONN_RESET_COUNT=1` (операционный шум, без отказа сервиса SSH).
+- Локальные прикладные узлы подтверждены: `pytest` (`9 passed`) и `compileall` для `services/ai-module` + `integrations/vpn`.
+- Docker runtime ограничение на текущем хосте зафиксировано как user-approved waiver и не блокирует закрытие Phase 13.
+## Phase 14 Progress
+- Актуализирован docs hub:
+  - `docs/README.md` приведён к текущему фазовому состоянию (после Phase 13).
+- Создана базовая структура документации для поддержки эксплуатации и разработки:
+  - `docs/architecture/overview.md`
+  - `docs/api/ai-module.md`
+  - `docs/api/vpn-readonly.md`
+  - `docs/runbooks/node-by-node-debugging.md`
+  - `docs/operations/docker-runtime-waiver.md`
+- Зафиксирована трассируемость документации к отчётам и gate:
+  - `README.md`
+  - `reports/05_implementation_log.md`
+  - `reports/07_test_matrix.md`
+- Docker runtime ограничение на текущем хосте задокументировано как operational waiver (без блокировки движения по фазам).
+- Phase 14 закрыта (documentation deliverables подготовлены и синхронизированы).
+## Phase 15 Progress
+- Финальный отчёт `reports/09_final_report.md` обновлён из milestone-only формата в full-cycle формат (Phase 0-14).
+- В отчёте зафиксированы:
+  - выполненные этапы и ключевые артефакты;
+  - текущие ограничения/waivers;
+  - блок рисков и следующие профессиональные шаги.
+- Phase 15 находится в работе до финального согласования и публикации.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.
