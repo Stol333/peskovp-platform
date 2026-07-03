@@ -153,3 +153,22 @@
   - `python -m pytest C:\Users\dgafa\services\ai-module\tests\test_guardrails.py C:\Users\dgafa\services\ai-module\tests\test_rate_limiter.py` — `3 passed`.
 - Production-контур не модифицировался.
 
+## Phase 9 (execution, completed)
+- Реализована Docker Compose инфраструктура:
+  - `docker/docker-compose.yml`
+  - `docker/docker-compose.override.yml`
+  - `docker/env/ai-module.env.example`
+  - `docker/env/vpn-readonly.env.example`
+  - `docker/healthchecks/ai_module_healthcheck.py`
+  - `services/ai-module/Dockerfile`
+  - `integrations/vpn/Dockerfile`
+- Обновлён runbook:
+  - `docker/README.md`
+- Выполнена валидация на текущем окружении:
+  - `docker compose version` — `docker` не найден в текущем shell окружении (зафиксирован environment constraint для runtime-проверки);
+  - `python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests` — `3 passed`;
+  - `python -m pytest C:\\Users\\dgafa\\integrations\\vpn\\tests` — `6 passed`;
+  - `python -m compileall C:\\Users\\dgafa\\docker\\healthchecks\\ai_module_healthcheck.py C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly` — успешно.
+- Фаза 9 закрыта по результатам реализации артефактов и статических/модульных проверок; runtime compose smoke-check перенесён в следующий этап при доступном Docker runtime.
+- Production-контур не модифицировался.
+

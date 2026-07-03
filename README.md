@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 7 — AI module (completed)`.
+Текущий этап: `Phase 09 — Docker Compose infrastructure (completed)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -25,4 +25,4 @@
 - Фазовые технические отчёты: `reports/*.md`
 
 ## Следующий этап
-`Phase 8 — Read-only VPN integration`.
+`Phase 10 — Nginx/SSL/domain integration`.

@@ -63,3 +63,12 @@
 - Python compile check: passed (`python -m compileall services/ai-module/src`).
 - Unit tests: passed (`3 passed` for `test_guardrails.py` + `test_rate_limiter.py`).
 
+## Phase 9 Checks (completed)
+- Compose artifacts creation: passed (`docker/docker-compose.yml`, `docker/docker-compose.override.yml`, `docker/env/*.env.example`, `docker/healthchecks/ai_module_healthcheck.py`, Dockerfile-ы сервисов).
+- Docker CLI availability check: environment constraint (`docker compose version` => `docker` command not found in current shell).
+- AI module unit tests: passed (`3 passed`).
+- VPN integration unit tests: passed (`6 passed`).
+- Python compile check for healthcheck + service modules: passed.
+- Phase completion decision: accepted for Phase 09 scope with documented runtime constraint on current host session.
+- Production safety: passed (локальные инфраструктурные изменения, без production runtime-действий).
+
