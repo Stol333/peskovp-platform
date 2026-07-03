@@ -15,7 +15,7 @@
 - [x] 05 Architecture decision
 - [x] 06 Project scaffold
 - [x] 07 AI module
-- [ ] 08 Read-only VPN integration
+- [x] 08 Read-only VPN integration
 - [ ] 09 Docker Compose infrastructure
 - [ ] 10 Nginx/SSL/domain integration
 - [ ] 11 Security hardening
@@ -25,7 +25,7 @@
 - [ ] 15 Final report
 
 ## Current Gate
-Phase 7 completed (AI module implemented and validated). Next phase: 08 Read-only VPN integration.
+Phase 8 completed (read-only VPN integration implemented and validated). Next phase: 09 Docker Compose infrastructure.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.

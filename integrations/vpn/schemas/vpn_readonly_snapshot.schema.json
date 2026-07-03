@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peskovp.local/schemas/vpn_readonly_snapshot.schema.json",
+  "title": "VPN Read-only Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "collected_at_utc",
+    "status",
+    "inbounds_total",
+    "inbounds_enabled",
+    "clients_online_total",
+    "subscriptions_total",
+    "subscriptions_expiring_soon",
+    "notes"
+  ],
+  "properties": {
+    "collected_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "degraded",
+        "unknown"
+      ]
+    },
+    "inbounds_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "inbounds_enabled": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "clients_online_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subscriptions_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subscriptions_expiring_soon": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "panel_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "xray_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
