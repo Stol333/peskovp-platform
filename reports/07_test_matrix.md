@@ -81,3 +81,12 @@
 - Phase completion decision: accepted for Phase 10 scope with documented Docker runtime constraint.
 - Production safety: passed (изменения только в локальных конфигурационных артефактах).
 
+## Phase 11 Checks (completed)
+- Server hardening script execution: passed (`infra/scripts/phase11_security_hardening.ps1`).
+- Phase 11 remote apply result: passed (`PHASE11_RESULT=PASS`, run base `/root/backups/peskovp-phase11-hardening-20260703-181859`).
+- SSH hardening validation: passed (`sshd` config test successful, service state `ssh=active`).
+- Nginx hardening validation: passed (`nginx -t` successful, service state `nginx=active`).
+- Fail2ban hardening validation: passed (`fail2ban=active`, `sshd` jail active).
+- Firewall hardening validation: passed (`22/tcp LIMIT IN` for IPv4/IPv6 in UFW status).
+- Backup-before-change policy: passed (pre-change snapshots saved in phase11 backup bundle).
+
