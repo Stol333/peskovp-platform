@@ -51,3 +51,15 @@
 - Secrets hygiene check: passed (только placeholder значения, без реальных токенов/ключей).
 - Production safety check: passed (локальный scaffold, без production-изменений).
 
+## Phase 7 Checks
+- AI module source scaffold: passed (`services/ai-module/src/*`).
+- OpenAI Responses integration layer: passed (`src/openai_responses_client.py`).
+- Guardrails implementation: passed (`src/guardrails.py`).
+- Rate limiting implementation: passed (`src/rate_limiter.py`).
+- History + usage logging implementation: passed (`src/history_store.py`, `src/usage_logger.py`).
+- API endpoints presence: passed (`/health`, `/v1/ai/respond`, `/v1/ai/respond/stream`, `/v1/ai/respond/structured`, `/v1/ai/history/{session_id}`, `/v1/ai/tools/approval-check`).
+- Secrets hygiene: passed (env placeholders only, no real keys in code/reports).
+- Production safety: passed (изменения только в локальном коде и отчетах).
+- Python compile check: passed (`python -m compileall services/ai-module/src`).
+- Unit tests: passed (`3 passed` for `test_guardrails.py` + `test_rate_limiter.py`).
+
