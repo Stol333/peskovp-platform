@@ -90,3 +90,9 @@
 - Firewall hardening validation: passed (`22/tcp LIMIT IN` for IPv4/IPv6 in UFW status).
 - Backup-before-change policy: passed (pre-change snapshots saved in phase11 backup bundle).
 
+## Phase 12 Preparation Checks
+- Entry gate after Phase 11 completion: passed.
+- Documentation sync for testing phase: passed (`README.md`, `TODO_PLAN.md`, `docs/README.md`, `tests/README.md`).
+- Planned regression scope definition: passed (AI module + VPN readonly + security invariants).
+- Planned infrastructure smoke scope definition: passed (compose/edge checks when Docker runtime is available).
+

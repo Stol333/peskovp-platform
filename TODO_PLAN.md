@@ -26,6 +26,15 @@
 
 ## Current Gate
 Phase 11 completed (server hardening applied and validated). Next phase: 12 Testing.
+## Phase 12 Preparation
+- Entry condition confirmed: Phase 11 hardening завершён, верифицирован и влит в `master`.
+- Test scope for Phase 12:
+  - regression/unit проверки `services/ai-module` и `integrations/vpn`;
+  - инфраструктурные проверки compose/edge при доступном Docker runtime;
+  - security regression-проверки инвариантов SSH/Nginx/Fail2ban/UFW после hardening.
+- Evidence update requirements:
+  - фиксировать результаты в `reports/07_test_matrix.md`;
+  - фиксировать ход выполнения в `reports/05_implementation_log.md`.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.
