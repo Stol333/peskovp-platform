@@ -19,6 +19,10 @@
 - Никаких секретов в репозитории.
 - Все секреты только через env/secret manager.
 - Production-изменения только после backup/rollback и validation.
+## Документация
+- Главный индекс документации: `docs/README.md`
+- Гайд по обновлению документации: `docs/CONTRIBUTING.md`
+- Фазовые технические отчёты: `reports/*.md`
 
 ## Следующий этап
 `Phase 8 — Read-only VPN integration`.
