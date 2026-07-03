@@ -130,3 +130,26 @@
 - Фаза 6 закрыта как завершённая: каркас готов к запуску Phase 7 (AI module).
 - Изменения production-сервера не выполнялись.
 
+## Phase 7 (execution)
+- Реализован AI module в `services/ai-module` с server-side архитектурой:
+  - FastAPI приложение (`src/main.py`);
+  - конфиг через env (`src/config.py`, `.env.example`);
+  - OpenAI Responses client (`src/openai_responses_client.py`);
+  - сервисный слой с history/usage logging/rate limiting (`src/service.py`);
+  - guardrails и approval-check для destructive tools (`src/guardrails.py`, endpoint `/v1/ai/tools/approval-check`);
+  - prompt templates (`prompts/*.md`);
+  - unit tests для guardrails/rate limiter (`tests/*.py`).
+- Реализованные требования из Phase 7 плана:
+  - Responses API server-side only;
+  - rate limits;
+  - usage logs;
+  - prompt templates;
+  - session history;
+  - streaming endpoint;
+  - structured outputs endpoint;
+  - guardrails + human approval gate для destructive tools.
+- Выполнена валидация кода:
+  - `python -m compileall C:\Users\dgafa\services\ai-module\src` — успешно;
+  - `python -m pytest C:\Users\dgafa\services\ai-module\tests\test_guardrails.py C:\Users\dgafa\services\ai-module\tests\test_rate_limiter.py` — `3 passed`.
+- Production-контур не модифицировался.
+

@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 6 — Project scaffold`.
+Текущий этап: `Phase 7 — AI module (completed)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -21,4 +21,4 @@
 - Production-изменения только после backup/rollback и validation.
 
 ## Следующий этап
-`Phase 7 — AI module`.
+`Phase 8 — Read-only VPN integration`.
