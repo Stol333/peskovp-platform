@@ -25,7 +25,7 @@
 - [ ] 15 Final report
 
 ## Current Gate
-Phase 11 completed (server hardening applied and validated). Next phase: 12 Testing.
+Phase 12 in progress (local regression passed, security regression passed, compose runtime-check blocked by unavailable Docker runtime).
 ## Phase 12 Preparation
 - Entry condition confirmed: Phase 11 hardening завершён, верифицирован и влит в `master`.
 - Test scope for Phase 12:
@@ -35,6 +35,11 @@ Phase 11 completed (server hardening applied and validated). Next phase: 12 Test
 - Evidence update requirements:
   - фиксировать результаты в `reports/07_test_matrix.md`;
   - фиксировать ход выполнения в `reports/05_implementation_log.md`.
+## Phase 12 Progress
+- Локальный regression/unit прогон: `services/ai-module/tests` (`3 passed`), `integrations/vpn/tests` (`6 passed`).
+- Compile check: `services/ai-module/src` и `integrations/vpn/src/vpn_readonly` — успешно.
+- Security regression (server-side, read-only): `ssh/nginx/fail2ban active`, hardening-конфиги присутствуют, `sshd -t`/`nginx -t` успешны, `ufw` содержит `22/tcp LIMIT IN`, `fail2ban sshd` jail активен.
+- Инфраструктурный compose smoke-check: blocked (Docker runtime недоступен в текущем окружении).
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.

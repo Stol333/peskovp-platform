@@ -96,3 +96,14 @@
 - Planned regression scope definition: passed (AI module + VPN readonly + security invariants).
 - Planned infrastructure smoke scope definition: passed (compose/edge checks when Docker runtime is available).
 
+## Phase 12 Checks (in progress)
+- AI module regression tests: passed (`python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests` => `3 passed`).
+- VPN readonly regression tests: passed (`python -m pytest C:\\Users\\dgafa\\integrations\\vpn\\tests` => `6 passed`).
+- Compile checks: passed (`python -m compileall C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly`).
+- Docker runtime availability: blocked (`docker compose version` => `docker` command not found).
+- Security regression — services active: passed (`ssh=active`, `nginx=active`, `fail2ban=active`).
+- Security regression — hardening artifacts presence: passed (`/etc/ssh/sshd_config.d/99-peskovp-hardening.conf`, `/etc/fail2ban/jail.d/10-peskovp-sshd.local`, `/etc/nginx/conf.d/zz-peskovp-hardening.conf`).
+- Security regression — config validation: passed (`sshd -t` => `SSHD_TEST=ok`; `nginx -t` => successful).
+- Security regression — firewall/jail status: passed (`ufw` содержит `22/tcp LIMIT IN` и `22/tcp (v6) LIMIT IN`; `fail2ban-client status sshd` показывает активный jail).
+- Phase status decision: in progress (compose/edge smoke-check требует доступного Docker runtime).
+

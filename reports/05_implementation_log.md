@@ -216,3 +216,22 @@
   - `tests/README.md` (зафиксирован базовый тестовый прогон и артефакты).
 - Подтверждена консистентность ссылок между runbook-файлами и фазовой отчётностью.
 
+## Phase 12 (execution, in progress)
+- Выполнен baseline regression/unit прогон:
+  - `python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests` → `3 passed`;
+  - `python -m pytest C:\\Users\\dgafa\\integrations\\vpn\\tests` → `6 passed`;
+  - `python -m compileall C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly` → успешно.
+- Проверен инфраструктурный runtime gate:
+  - `docker compose version` → `docker` command not found (compose smoke-check временно blocked).
+- Выполнен security regression (read-only, server-side):
+  - `ssh/nginx/fail2ban` → `active`;
+  - hardening-конфиги присутствуют:
+    - `/etc/ssh/sshd_config.d/99-peskovp-hardening.conf`,
+    - `/etc/fail2ban/jail.d/10-peskovp-sshd.local`,
+    - `/etc/nginx/conf.d/zz-peskovp-hardening.conf`;
+  - `sshd -t` → `SSHD_TEST=ok`;
+  - `nginx -t` → syntax/config successful;
+  - `ufw status verbose` подтверждает `22/tcp LIMIT IN` и `22/tcp (v6) LIMIT IN`;
+  - `fail2ban-client status sshd` подтверждает активный jail.
+- Этап Phase 12 переведён в состояние `in progress`; финализация зависит от доступности Docker runtime для compose/edge smoke-check.
+
