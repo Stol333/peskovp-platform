@@ -96,14 +96,43 @@
 - Planned regression scope definition: passed (AI module + VPN readonly + security invariants).
 - Planned infrastructure smoke scope definition: passed (compose/edge checks when Docker runtime is available).
 
-## Phase 12 Checks (in progress)
+## Phase 12 Checks (completed with runtime waiver)
 - AI module regression tests: passed (`python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests` => `3 passed`).
 - VPN readonly regression tests: passed (`python -m pytest C:\\Users\\dgafa\\integrations\\vpn\\tests` => `6 passed`).
 - Compile checks: passed (`python -m compileall C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly`).
-- Docker runtime availability: blocked (`docker compose version` => `docker` command not found).
+- Compose CLI availability: passed (`docker compose version` => `Docker Compose version v5.3.0`).
+- Compose config validation: passed (`docker compose ... config` для base/override, `vpn-readonly` и `certbot` профилей, exit code `0`).
+- Docker runtime startability: failed (`docker compose ... up -d ai-module nginx-gateway` => `Docker Desktop is unable to start`, `docker desktop status` => `stopped`).
 - Security regression — services active: passed (`ssh=active`, `nginx=active`, `fail2ban=active`).
 - Security regression — hardening artifacts presence: passed (`/etc/ssh/sshd_config.d/99-peskovp-hardening.conf`, `/etc/fail2ban/jail.d/10-peskovp-sshd.local`, `/etc/nginx/conf.d/zz-peskovp-hardening.conf`).
 - Security regression — config validation: passed (`sshd -t` => `SSHD_TEST=ok`; `nginx -t` => successful).
 - Security regression — firewall/jail status: passed (`ufw` содержит `22/tcp LIMIT IN` и `22/tcp (v6) LIMIT IN`; `fail2ban-client status sshd` показывает активный jail).
-- Phase status decision: in progress (compose/edge smoke-check требует доступного Docker runtime).
+- Runtime waiver decision: accepted by user for current host (Docker Desktop does not start).
+- Phase status decision: completed with documented Docker runtime waiver on current host.
+## Phase 13 Checks (completed)
+- Node baseline services: passed (`systemctl is-active nginx x-ui peskovp-sub peskovp-hy2 peskovp-hy2-obfs peskovp-hy2-advanced fail2ban ssh` => all `active`).
+- Systemd failed units check: passed (`systemctl --failed --no-legend` => empty).
+- HY2 sync node health: passed (`peskovp-hy2-sync.timer` active; latest `peskovp-hy2-sync.service` run exited `status=0/SUCCESS`).
+- Wait-online node status: passed with informational note (`systemd-networkd-wait-online.service` = `skipped` by condition in current boot; no active timeout incident).
+- SSH operational noise metrics (24h): observed, non-blocking (`SSH_ERR_TOTAL=22`, `SSH_KEX_COUNT=19`, `SSH_PROTOCOL_MISMATCH_COUNT=1`, `SSH_CONN_RESET_COUNT=1`).
+- Edge/security node checks: passed (`nginx -t` successful; UFW contains SSH `LIMIT` for v4/v6; `fail2ban-client status sshd` jail active).
+- Local application node regression: passed (`python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests C:\\Users\\dgafa\\integrations\\vpn\\tests` => `9 passed`).
+- Local compile sanity: passed (`python -m compileall C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly`).
+- Docker runtime node on current host: failed to start (`docker compose ... up -d` => `Docker Desktop is unable to start`; `docker desktop status` => `stopped`; desktop logs indicate `Virtual Machine Platform not enabled`).
+- Runtime waiver continuity: accepted by user for current host and treated as non-blocking for Phase 13 closure.
+- Phase status decision: completed (node-by-node debugging goals met with documented runtime waiver context).
+## Phase 14 Checks (completed)
+- Docs hub актуальность: passed (`docs/README.md` обновлён под текущее фазовое состояние и структуру документации).
+- Архитектурный документ: passed (`docs/architecture/overview.md` создан, содержит компонентную карту и ограничения).
+- API документация: passed (`docs/api/ai-module.md`, `docs/api/vpn-readonly.md` созданы).
+- Runbook документация: passed (`docs/runbooks/node-by-node-debugging.md` создан на основе фактической диагностики Phase 13).
+- Operational waiver документация: passed (`docs/operations/docker-runtime-waiver.md` создан, содержит симптомы/влияние/критерии снятия).
+- Process documentation consistency: passed (`docs/CONTRIBUTING.md` дополнен checklist для operational status/waiver).
+- Traceability consistency: passed (ссылки на `README.md`, `TODO_PLAN.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md` синхронизированы).
+- Phase status decision: completed (documentation deliverables сформированы и согласованы по структуре).
+## Phase 15 Checks (completed)
+- Final report refresh: passed (`reports/09_final_report.md` переведён в full-cycle формат после Phase 14).
+- Final report consistency: passed (содержимое согласовано с `TODO_PLAN.md`, `README.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md`).
+- Publication workflow: passed (PR `#4` открыт, ready-for-review, команда уведомлена).
+- Workspace cleanup: passed (временная документация архивирована, локальные `__pycache__` и `.pytest_cache` удалены).
 

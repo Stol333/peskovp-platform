@@ -1,0 +1,191 @@
+name: peskovp-platform-prod
+
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${LOG_MAX_SIZE:-10m}"
+    max-file: "${LOG_MAX_FILES:-5}"
+
+services:
+  web-app:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    image: peskovp/web:phase15
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      NODE_ENV: production
+      PORT: "3000"
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-}
+      API_INTERNAL_BASE_URL: http://api:8080
+      NEXT_TELEGRAM_MINIAPP_URL: ${TELEGRAM_MINI_APP_URL:-https://t.me/peskovp_bot/app}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_INITDATA_MAX_AGE_SECONDS: ${TELEGRAM_INITDATA_MAX_AGE_SECONDS:-300}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-manual}
+      PAYMENTS_TELEGRAM_WEBHOOK_SECRET: ${PAYMENTS_TELEGRAM_WEBHOOK_SECRET:-}
+      PAYMENTS_YOOKASSA_WEBHOOK_SECRET: ${PAYMENTS_YOOKASSA_WEBHOOK_SECRET:-}
+      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET_KEY: ${YOOKASSA_SECRET_KEY:-}
+      CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_BIND_PORT:-3100}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 40s
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: peskovp/api:phase15
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://peskovp:change_me@postgres:5432/peskovp}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      VPN_V2_CANARY_PERCENT: ${VPN_V2_CANARY_PERCENT:-1}
+      VPN_V2_CANARY_SALT: ${VPN_V2_CANARY_SALT:-replace_me}
+      VPN_V2_CANARY_TEST_USERS: ${VPN_V2_CANARY_TEST_USERS:-}
+      VPN_V2_REGISTRY_PATH: ${VPN_V2_REGISTRY_PATH:-apps/api/src/vpn_v2_api/sample_nodes.json}
+      VPN_V2_TELEGRAM_MINIAPP_URL: ${VPN_V2_TELEGRAM_MINIAPP_URL:-https://t.me/peskovp_bot/app}
+      VPN_V2_HIDDEN_SUBSCRIPTION_PATH: ${VPN_V2_HIDDEN_SUBSCRIPTION_PATH:-/v2/subscription/canary}
+      VPN_V2_SUBSCRIPTION_DOMAIN: ${VPN_V2_SUBSCRIPTION_DOMAIN:-sub.peskovp.com}
+      VPN_V2_ENABLE_RF_GATEWAY: ${VPN_V2_ENABLE_RF_GATEWAY:-true}
+      VPN_WRITE_ENABLED: ${VPN_WRITE_ENABLED:-false}
+      VPN_PROVISIONING_DRY_RUN: ${VPN_PROVISIONING_DRY_RUN:-true}
+      VPN_PROVISIONING_EXPLICIT_APPROVAL: ${VPN_PROVISIONING_EXPLICIT_APPROVAL:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${API_BIND_PORT:-18080}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4); data=json.loads(r.read().decode('utf-8')); sys.exit(0 if r.status==200 and data.get('status')=='ok' else 1)"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+  ai-module:
+    build:
+      context: ..
+      dockerfile: services/ai-module/Dockerfile
+    image: peskovp/ai-module:phase15
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-5}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      AI_REQUIRE_AUTH: ${AI_REQUIRE_AUTH:-true}
+      AI_API_AUTH_TOKEN: ${AI_API_AUTH_TOKEN:-}
+      AI_RATE_LIMIT_RPM: ${AI_RATE_LIMIT_RPM:-20}
+      AI_MAX_PROMPT_CHARS: ${AI_MAX_PROMPT_CHARS:-6000}
+      AI_HISTORY_LIMIT: ${AI_HISTORY_LIMIT:-50}
+      AI_USAGE_LOG_PATH: /app/services/ai-module/logs/usage.jsonl
+      AI_AUDIT_LOG_PATH: /app/services/ai-module/logs/audit.jsonl
+      AI_PROMPT_DIR: /app/services/ai-module/prompts
+      AI_DEFAULT_TEMPLATE: ${AI_DEFAULT_TEMPLATE:-support_assistant}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-true}
+      AI_LOG_SUMMARY_MAX_CHARS: ${AI_LOG_SUMMARY_MAX_CHARS:-30000}
+      AI_LOG_SUMMARY_MAX_LINES: ${AI_LOG_SUMMARY_MAX_LINES:-20}
+    volumes:
+      - ai_module_logs:/app/services/ai-module/logs
+    ports:
+      - "127.0.0.1:${AI_BIND_PORT:-8787}:8787"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=4); data=json.loads(r.read().decode('utf-8')); sys.exit(0 if r.status==200 and data.get('status')=='ok' else 1)"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-peskovp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-peskovp}
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=256MB"]
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "10000"]
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+  vpn-readonly:
+    profiles: ["vpn-readonly"]
+    build:
+      context: ..
+      dockerfile: integrations/vpn/Dockerfile
+    image: peskovp/vpn-readonly:phase15
+    environment:
+      VPN_API_BASE_URL: ${VPN_API_BASE_URL:-https://vpn-panel.example.com}
+      VPN_API_TOKEN: ${VPN_API_TOKEN:-}
+      VPN_HTTP_TIMEOUT_SECONDS: ${VPN_HTTP_TIMEOUT_SECONDS:-10}
+      VPN_VERIFY_TLS: ${VPN_VERIFY_TLS:-true}
+    restart: "no"
+    logging: *default-logging
+    networks:
+      - peskovp_internal
+
+volumes:
+  ai_module_logs:
+    name: peskovp_ai_module_logs
+  postgres_data:
+    name: peskovp_postgres_data
+  redis_data:
+    name: peskovp_redis_data
+
+networks:
+  peskovp_internal:
+    name: peskovp_internal
+    driver: bridge

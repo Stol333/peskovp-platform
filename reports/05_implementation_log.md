@@ -235,3 +235,72 @@
   - `fail2ban-client status sshd` подтверждает активный jail.
 - Этап Phase 12 переведён в состояние `in progress`; финализация зависит от доступности Docker runtime для compose/edge smoke-check.
 
+## Phase 12 (execution update, completed with runtime waiver)
+- Снят блокер отсутствия compose CLI:
+  - установлен `Docker.DockerCompose` через `winget` (`docker-compose` / `docker compose` v5.3.0);
+  - установлен `Docker.DockerDesktop` через `winget`.
+- Выполнены инфраструктурные compose проверки:
+  - `docker compose -f C:\\Users\\dgafa\\docker\\docker-compose.yml -f C:\\Users\\dgafa\\docker\\docker-compose.override.yml config` — passed;
+  - profile checks (`vpn-readonly`, `certbot`) — passed (exit code `0`).
+- Попытка runtime запуска edge-сервисов:
+  - `docker compose ... up -d ai-module nginx-gateway` — failed: `Docker Desktop is unable to start`;
+  - `docker desktop status` — `stopped`.
+- По решению пользователя Docker runtime smoke-check на данном хосте пропущен (waiver), без блокировки релизного движения по фазам.
+- Фаза 12 закрыта как completed with runtime waiver; следующий этап — Phase 13.
+
+## Phase 13 (execution, completed)
+- Выполнена node-by-node диагностика production-контура (read-only):
+  - `systemctl is-active nginx x-ui peskovp-sub peskovp-hy2 peskovp-hy2-obfs peskovp-hy2-advanced fail2ban ssh` → все `active`;
+  - `systemctl --failed --no-legend` → пусто;
+  - `peskovp-hy2-sync.service`/`peskovp-hy2-sync.timer` проверены: timer `active`, последний service run завершён `status=0/SUCCESS`.
+- Проверен operational сигнал `systemd-networkd-wait-online`:
+  - текущий статус `skipped` по condition в boot-цикле, активного timeout-инцидента не выявлено.
+- Собраны SSH-noise метрики за последние 24 часа:
+  - `SSH_ERR_TOTAL=22`;
+  - `SSH_KEX_COUNT=19`;
+  - `SSH_PROTOCOL_MISMATCH_COUNT=1`;
+  - `SSH_CONN_RESET_COUNT=1`.
+- Проверен edge/security слой:
+  - `nginx -t` successful;
+  - `ufw status verbose` подтверждает `22/tcp LIMIT IN` для v4/v6;
+  - `fail2ban-client status sshd` подтверждает активный jail.
+- Проверены локальные прикладные узлы:
+  - `python -m pytest C:\\Users\\dgafa\\services\\ai-module\\tests C:\\Users\\dgafa\\integrations\\vpn\\tests` → `9 passed`;
+  - `python -m compileall C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src\\vpn_readonly` → успешно.
+- Docker runtime узел на текущем хосте остаётся проблемным:
+  - `docker compose ... up -d ai-module nginx-gateway` → `Docker Desktop is unable to start`;
+  - `docker desktop status` → `stopped`;
+  - `docker desktop logs` показывает precondition issue (`Virtual Machine Platform not enabled` / `no virtualization found`).
+- По решению пользователя Docker runtime debugging на текущем хосте не блокирует движение по фазам (waiver сохранён).
+- Фаза 13 закрыта, следующий этап: Phase 14 (Documentation).
+
+## Phase 14 (execution, completed)
+- Выполнена актуализация документации по результатам Phase 13:
+  - синхронизированы `README.md` и `TODO_PLAN.md` с текущим gate.
+- Обновлён docs hub:
+  - `docs/README.md` переведён из scaffold-формата в рабочий индекс документации.
+- Добавлены ключевые документы Phase 14:
+  - `docs/architecture/overview.md`;
+  - `docs/api/ai-module.md`;
+  - `docs/api/vpn-readonly.md`;
+  - `docs/runbooks/node-by-node-debugging.md`;
+  - `docs/operations/docker-runtime-waiver.md`.
+- Обновлён процессный гайд:
+  - `docs/CONTRIBUTING.md` дополнен требованиями по operational status/waiver и структуре docs-коммитов.
+- Ограничение Docker runtime на текущем хосте оформлено как отдельный operational документ с критериями снятия waiver.
+- Phase 14 закрыта: документационные deliverables сформированы и синхронизированы с отчётностью.
+
+## Phase 15 (execution, completed)
+- Финализированы фазовые документы и закрыт цикл `Phase 00-15`:
+  - `README.md`,
+  - `TODO_PLAN.md`,
+  - `docs/README.md`,
+  - `reports/09_final_report.md`.
+- Выполнен release handoff:
+  - создан PR `#4` (`feat: V6 controlled VPN re-architecture baseline and canary groundwork`),
+  - PR переведён в ready-for-review и прокомментирован для команды.
+- Выполнен workspace cleanup:
+  - временная документация архивирована в `artifacts/documentation_archives/20260706_pr4_closeout`,
+  - удалены генерируемые локальные кэши (`__pycache__`, `.pytest_cache`) из проектных каталогов.
+- Итог: документация финализирована, рабочее пространство очищено, задача передана в стадию review.
+
