@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 15 — Final report (in progress)`.
+Текущий этап: `Phase 15 — Final report (completed)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -59,13 +59,25 @@
 - Runtime ограничение Docker на текущем хосте явно задокументировано как operational waiver.
 - Phase 14 закрыта: документационный набор переведён из scaffold в рабочий вид.
 ## Статус Phase 15 (Final report)
-- Финальный отчёт переведён в актуальный формат полного цикла (Phase 0-14) в `reports/09_final_report.md`.
+- Финальный отчёт переведён в актуальный формат полного цикла (Phase 00-15) в `reports/09_final_report.md`.
 - В отчёт включены:
   - итоги по безопасному выполнению фаз;
   - подтверждённые результаты тестирования и node-by-node debugging;
   - зафиксированный Docker runtime waiver на текущем хосте;
   - набор рекомендаций для post-phase развития.
-- Phase 15 находится в работе до финального согласования и публикации.
+- Phase 15 завершена: итоговый отчёт сформирован и статусы фаз синхронизированы.
+
+## V6 Controlled VPN Re-Architecture (execution update)
+- Выполнены baseline + backup + architecture + implementation артефакты V6:
+  - `reports/30_*` ... `reports/38_*`,
+  - `docs/VPN_V2_ARCHITECTURE.md`,
+  - `infra/rollback/VPN_V2_ROLLBACK.md`,
+  - `packages/vpn-routing`,
+  - `apps/api` V2 contour,
+  - `apps/web` Telegram/admin scaffold.
+- Backup gate подтверждён для MAIN и RF.
+- Mass switch legacy подписки не выполнялся (только controlled canary readiness).
+- Port reclaim отложен до live canary telemetry.
 
 ## Следующий этап
-`Phase 15 — Final report` (финализация и публикация).
+Admin-only canary activation на RF и последующий поэтапный rollout `1% -> 5% -> 25%` с gate-метриками и rollback per-step.

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PESKOVP V2 Mini App</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; max-width: 560px; }
+      .btn { background: #1f6feb; color: white; border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+      .muted { color: #666; font-size: 14px; }
+      pre { background: #f7f7f8; padding: 12px; border-radius: 8px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>VPN V2 Mini App (Canary)</h1>
+      <p class="muted">Только для controlled rollout cohorts.</p>
+      <button class="btn" id="btn">Создать сессию</button>
+      <pre id="out">Ожидание...</pre>
+    </div>
+    <script>
+      const out = document.getElementById("out");
+      const button = document.getElementById("btn");
+
+      async function createSession() {
+        out.textContent = "Запрос...";
+        try {
+          const response = await fetch("/v2/telegram/miniapp/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: "demo-user", locale: "ru" })
+          });
+          const payload = await response.json();
+          out.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          out.textContent = `Ошибка: ${error.message}`;
+        }
+      }
+
+      button.addEventListener("click", createSession);
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,53 @@
+{
+  "nodes": [
+    {
+      "node_id": "main-control",
+      "role": "main",
+      "region": "eu",
+      "domain": "panel.peskovp.com",
+      "port": 8443,
+      "transport": "tcp",
+      "active": true,
+      "health": {
+        "latency_ms": 24.0,
+        "error_rate": 0.01,
+        "uptime_ratio": 0.999,
+        "load_ratio": 0.27,
+        "last_updated_utc": "2026-07-06T09:00:00Z"
+      }
+    },
+    {
+      "node_id": "rf-primary-tcp",
+      "role": "rf",
+      "region": "ru",
+      "domain": "ru.peskovp.com",
+      "port": 443,
+      "transport": "tcp",
+      "active": true,
+      "health": {
+        "latency_ms": 31.0,
+        "error_rate": 0.02,
+        "uptime_ratio": 0.997,
+        "load_ratio": 0.33,
+        "last_updated_utc": "2026-07-06T09:00:00Z"
+      }
+    },
+    {
+      "node_id": "rf-secondary-grpc",
+      "role": "rf",
+      "region": "ru",
+      "domain": "relay-ru.peskovp.com",
+      "port": 8443,
+      "transport": "grpc",
+      "active": true,
+      "health": {
+        "latency_ms": 52.0,
+        "error_rate": 0.03,
+        "uptime_ratio": 0.994,
+        "load_ratio": 0.41,
+        "last_updated_utc": "2026-07-06T09:00:00Z"
+      }
+    }
+  ]
+}
+

@@ -22,10 +22,20 @@
 - [x] 12 Testing
 - [x] 13 Node-by-node debugging
 - [x] 14 Documentation
-- [ ] 15 Final report
+- [x] 15 Final report
 
 ## Current Gate
-Phase 15 in progress (final report updated to full-cycle draft and pending final publish).
+Plan phases `00-15` completed. Current gate: project phase cycle closed.
+## V6 Execution Track (controlled VPN re-architecture)
+- [x] Read-only baseline MAIN/RF + DNS split зафиксирован (`reports/31_ru_gateway_audit.md`).
+- [x] Redacted competitor pattern analysis выполнен (`reports/30_competitor_pattern_analysis.md`).
+- [x] Backup gate MAIN/RF выполнен (`reports/33_ru_gateway_backup.md`).
+- [x] Rollback runbook V2 подготовлен (`infra/rollback/VPN_V2_ROLLBACK.md`).
+- [x] Port ownership/migration design оформлен (`reports/32_port_ownership_and_migration_plan.md`).
+- [x] V2 architecture docs оформлены (`docs/VPN_V2_ARCHITECTURE.md`, `reports/33_vpn_v2_architecture.md`).
+- [x] Реализован V2 routing/API/web canary baseline.
+- [x] V2 test matrix/canary/port-reclaim/final отчёты подготовлены (`reports/35-38`).
+- [ ] Live admin-only canary on RF (следующий write-step, с мониторингом в реальном трафике).
 ## Phase 12 Preparation
 - Entry condition confirmed: Phase 11 hardening завершён, верифицирован и влит в `master`.
 - Test scope for Phase 12:
@@ -65,12 +75,12 @@ Phase 15 in progress (final report updated to full-cycle draft and pending final
 - Docker runtime ограничение на текущем хосте задокументировано как operational waiver (без блокировки движения по фазам).
 - Phase 14 закрыта (documentation deliverables подготовлены и синхронизированы).
 ## Phase 15 Progress
-- Финальный отчёт `reports/09_final_report.md` обновлён из milestone-only формата в full-cycle формат (Phase 0-14).
+- Финальный отчёт `reports/09_final_report.md` обновлён из milestone-only формата в full-cycle формат (Phase 00-15).
 - В отчёте зафиксированы:
   - выполненные этапы и ключевые артефакты;
   - текущие ограничения/waivers;
   - блок рисков и следующие профессиональные шаги.
-- Phase 15 находится в работе до финального согласования и публикации.
+- Phase 15 завершена: итоговый отчёт сформирован и статус проекта обновлён.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.

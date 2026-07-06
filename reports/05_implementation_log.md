@@ -290,12 +290,43 @@
 - Ограничение Docker runtime на текущем хосте оформлено как отдельный operational документ с критериями снятия waiver.
 - Phase 14 закрыта: документационные deliverables сформированы и синхронизированы с отчётностью.
 
-## Phase 15 (execution, in progress)
+## Phase 15 (execution, completed)
 - Обновлён финальный отчёт:
-  - `reports/09_final_report.md` переведён из milestone формата `Phase 0-5` в full-cycle формат по состоянию после Phase 14.
+  - `reports/09_final_report.md` переведён из milestone формата `Phase 0-5` в full-cycle формат по состоянию после Phase 14/15.
 - В Phase 15 отчёте зафиксированы:
-  - статус выполнения фаз `00-14`;
+  - статус выполнения фаз `00-15`;
   - операционные ограничения и waiver-контекст;
   - итоговые риски и дальнейшие профессиональные шаги.
-- Текущий этап — финализация и публикация итогового отчёта.
+- Итоговый статус Phase 15: completed (финальный отчёт сформирован, gate обновлён в `README.md` и `TODO_PLAN.md`).
+
+## V6 Controlled VPN Re-Architecture (execution)
+- Прочитан и исполнен V6 implementation plan (`da195dc1-4ff2-4148-9d00-6a161e5ad0cc`) с обновлением фактов по DNS split.
+- Выполнен свежий read-only baseline для MAIN/RF:
+  - MAIN: сервисы/порты/UFW/x-ui DB summary подтверждены.
+  - RF: `ssh/docker/containerd` active, `nginx/x-ui/xray/fail2ban` inactive, UFW inactive, compose plugin отсутствует.
+- Выполнен redacted competitor analysis и создан отчёт:
+  - `reports/30_competitor_pattern_analysis.md`.
+- Выполнен backup gate на двух хостах:
+  - MAIN backup: `/root/backups/peskovp-platform-prechange-20260706-121952`,
+  - RF backup: `/root/backups/peskovp-platform-prechange-20260706-122147`,
+  - отчёт: `reports/33_ru_gateway_backup.md`.
+- Подготовлен отдельный rollback runbook:
+  - `infra/rollback/VPN_V2_ROLLBACK.md`.
+- Добавлены V2 архитектурные и migration артефакты:
+  - `reports/31_ru_gateway_audit.md`,
+  - `reports/32_port_ownership_and_migration_plan.md`,
+  - `docs/VPN_V2_ARCHITECTURE.md`,
+  - `reports/33_vpn_v2_architecture.md`.
+- Реализован кодовый V2 baseline:
+  - `packages/vpn-routing` (registry/policy/scoring/canary/profiles),
+  - `apps/api` (V2 preview + telegram session contours),
+  - `apps/web` (UI contract + miniapp scaffold).
+- Обновлены env/status документы:
+  - `.env.example`, `README.md`, `TODO_PLAN.md`, `docs/README.md`.
+- Подготовлены обязательные evidence-отчёты:
+  - `reports/35_vpn_v2_test_matrix.md`,
+  - `reports/36_vpn_v2_canary_report.md`,
+  - `reports/37_port_reclaim_report.md`,
+  - `reports/38_final_v6_report.md`.
+- Production mass switch и port reclaim намеренно не выполнялись до live canary telemetry (соответствие safety-gates).
 

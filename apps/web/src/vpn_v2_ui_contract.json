@@ -1,0 +1,36 @@
+{
+  "version": "0.1.0",
+  "module": "vpn_v2_admin_client",
+  "pages": [
+    {
+      "id": "rollout-control",
+      "title": "V2 Rollout Control",
+      "actions": [
+        "set_canary_percent",
+        "view_node_health",
+        "preview_subscription_profile"
+      ],
+      "api_dependencies": [
+        "GET /v2/nodes",
+        "POST /v2/subscription/preview"
+      ]
+    },
+    {
+      "id": "telegram-miniapp",
+      "title": "Telegram Mini App Session",
+      "actions": [
+        "create_session",
+        "open_deeplink"
+      ],
+      "api_dependencies": [
+        "POST /v2/telegram/miniapp/session"
+      ]
+    }
+  ],
+  "states": {
+    "loading": ["fetch_nodes", "fetch_preview"],
+    "error": ["network_error", "invalid_response"],
+    "empty": ["no_nodes", "no_profiles"]
+  }
+}
+
