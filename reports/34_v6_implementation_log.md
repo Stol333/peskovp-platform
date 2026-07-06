@@ -663,3 +663,87 @@
 - `PHASE 16`: `PASSED`.
 ### Next
 - Переход к `PHASE 17` (test before deploy).
+## PHASE 17 — TEST BEFORE DEPLOY
+### Read
+- Сверены обязательные пункты PHASE 17 из `PESKOVP_WARP_V6_EXECUTION_PLAN.md`:
+  - dependencies install;
+  - lint/format/typecheck;
+  - unit/integration tests;
+  - build;
+  - DB migration check;
+  - docker compose config;
+  - static secret scan.
+- Подтверждён текущий runtime-факт: JavaScript toolchain отсутствует (`node/npm/pnpm`).
+### Plan
+- Пройти все 10 обязательных проверок PHASE 17 и зафиксировать каждую как `PASS` или честный `BLOCKED`.
+- Для static secret scan отделить реальные риски от тестовых synthetic fixtures.
+### Risk check
+- Critical blocker risk: без `node/npm/pnpm` невозможно верифицировать JS/TS pipeline (install/lint/format/typecheck/build/DB package checks).
+- Quality risk: ложноположительные совпадения secret scan в тестовых фикстурах могут исказить gate без ручной проверки контекста.
+### Backup / rollback check
+- Фаза верификационная/read-only (без server-side apply и destructive изменений).
+- Backup/rollback инварианты PHASE 04 не затрагивались.
+### Execute
+- Выполнен единый JS toolchain/predeploy прогон:
+  - `node --version; npm --version; pnpm --version; pnpm install; pnpm lint; pnpm exec prettier --check .; pnpm typecheck; pnpm build; pnpm --filter @peskovp/db build`
+  - Result: все команды `BLOCKED` с ошибкой `not recognized` для `node/npm/pnpm`.
+- Повторно выполнены Python unit/integration тесты:
+  - `python -m pytest C:/Users/dgafa/packages/vpn-routing/tests -q` -> `18 passed`;
+  - `python -m pytest C:/Users/dgafa/apps/api/tests -q` -> `3 passed`;
+  - `python -m pytest C:/Users/dgafa/integrations/vpn/tests -q` -> `6 passed`;
+  - `python -m pytest C:/Users/dgafa/services/ai-module/tests -q` -> `17 passed, 1 warning`.
+- Выполнен Python build/syntax check:
+  - `python -m compileall C:/Users/dgafa/packages/vpn-routing/src C:/Users/dgafa/apps/api/src C:/Users/dgafa/integrations/vpn/src C:/Users/dgafa/services/ai-module/src`
+  - Result: completed without syntax errors.
+- Выполнена явная compose-проверка:
+  - `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example config`
+  - Result marker: `DOCKER_COMPOSE_CONFIG_OK`.
+- Выполнена static secret scan проверка:
+  - `gitleaks version` -> tool отсутствует в окружении.
+  - Regex scan выполнен по каталогам `apps`, `packages`, `services`, `integrations`, `infra`, `docker`, `docs`, `reports`.
+  - Совпадения найдены только в test fixtures:
+    - `services/ai-module/tests/test_main_auth_api.py`
+    - `services/ai-module/tests/test_service_phase14.py`
+    - `services/ai-module/tests/test_log_summarizer.py`
+    - `services/ai-module/tests/test_redaction.py`
+    - `integrations/vpn/tests/test_provider.py`
+  - Повторный scan по source-путям `services/ai-module/src` и `integrations/vpn/src` совпадений не выявил.
+### Verify
+- `Install dependencies`: `BLOCKED` (нет `pnpm`).
+- `Lint`: `BLOCKED` (нет `pnpm`).
+- `Format check`: `BLOCKED` (нет `pnpm`).
+- `Typecheck`: `BLOCKED` (нет `pnpm`).
+- `Unit tests`: `PASS` (`18 + 3 + 17`).
+- `Integration tests`: `PASS` (`6`).
+- `Build`: `PARTIAL` (Python compile `PASS`, JS build `BLOCKED` без `pnpm`).
+- `DB migration check`: `BLOCKED` (нет `pnpm`, пакетный DB-пайплайн не запускается).
+- `Docker compose config`: `PASS` (`DOCKER_COMPOSE_CONFIG_OK`).
+- `Static hardcoded secrets scan`: `PASS` (в source-файлах совпадений не найдено; найденные совпадения ограничены synthetic test data).
+### Record
+- PHASE 17 evidence зафиксирован в:
+  - `reports/34_v6_implementation_log.md`;
+  - `reports/35_vpn_v2_test_matrix.md`;
+  - `TODO_PLAN_V6_EXECUTION.md`.
+### Gate
+- `PHASE 17`: `BLOCKED` (critical blocker: отсутствует `node/npm/pnpm`, из-за чего не закрываются обязательные JS/TS проверки и DB migration check).
+### Next
+- Установить Node.js LTS + `pnpm` (через Corepack или standalone), затем повторить `pnpm install`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm typecheck`, `pnpm build`, `pnpm --filter @peskovp/db build`.
+- После успешного повторного verify обновить gate PHASE 17 до `PASSED` и только затем переходить к PHASE 18.
+### Resolution plan (dependency blockers)
+- Step 1 — Toolchain bootstrap:
+  - установить Node.js LTS;
+  - выполнить `corepack enable`;
+  - выполнить `corepack prepare pnpm@9.12.3 --activate`;
+  - подтвердить версии `node/npm/pnpm`.
+- Step 2 — Re-run blocked checks:
+  - `pnpm install`;
+  - `pnpm lint`;
+  - `pnpm exec prettier --check .`;
+  - `pnpm typecheck`;
+  - `pnpm build`;
+  - `pnpm --filter @peskovp/db build`.
+- Step 3 — Regression safety repeat:
+  - повторить Python test/compile и `docker compose ... config` для подтверждения неизменности уже зелёных контуров.
+- Step 4 — Gate closure criteria:
+  - PHASE 17 переводится в `PASSED` только если JS/TS и DB pipeline проходят без critical/high blockers;
+  - при новых блокерах фиксируется честный `BLOCKED` с evidence и обновлённым mitigation plan.

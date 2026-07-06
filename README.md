@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 15 — Final report (completed)`.
+Текущий этап: `V6 PHASE 17 — TEST BEFORE DEPLOY (BLOCKED: отсутствует node/npm/pnpm)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -65,7 +65,27 @@
   - подтверждённые результаты тестирования и node-by-node debugging;
   - зафиксированный Docker runtime waiver на текущем хосте;
   - набор рекомендаций для post-phase развития.
-- Phase 15 завершена: документация финализирована, PR подготовлен и передан в review.
+- Phase 15 завершена: итоговый отчёт сформирован и статусы фаз синхронизированы.
 
-## Следующий этап
-Code review и merge PR `#4` (`feat: V6 controlled VPN re-architecture baseline and canary groundwork`).
+## V6 Controlled VPN Re-Architecture (execution update)
+- Выполнены baseline + backup + architecture + implementation артефакты V6:
+  - `reports/30_*` ... `reports/38_*`,
+  - `docs/VPN_V2_ARCHITECTURE.md`,
+  - `infra/rollback/VPN_V2_ROLLBACK.md`,
+  - `packages/vpn-routing`,
+  - `apps/api` V2 contour,
+  - `apps/web` Telegram/admin scaffold.
+- Backup gate подтверждён для MAIN и RF.
+- Mass switch legacy подписки не выполнялся (только controlled canary readiness).
+- Port reclaim отложен до live canary telemetry.
+
+## Дорожная карта (обновление после PHASE 17 BLOCKED)
+1. Разблокировать зависимости toolchain:
+   - установить Node.js LTS;
+   - активировать `pnpm@9.12.3` через Corepack;
+   - подтвердить `node/npm/pnpm` версии.
+2. Повторно выполнить обязательный predeploy-цикл PHASE 17:
+   - `pnpm install`, `lint`, `prettier --check`, `typecheck`, `build`, `@peskovp/db build`;
+   - контрольные Python test/compile и `docker compose config`.
+3. Закрыть PHASE 17 статусом `PASSED` и только после этого перейти к PHASE 18.
+4. После PHASE 18 продолжить canary-ветку PHASE 19-20 (RF gateway + V2 subscription canary) с rollback-ready контролем.
