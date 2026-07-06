@@ -120,3 +120,48 @@
 ### Conclusion
 `PHASE 17` остаётся `BLOCKED`: toolchain и package-level блокеры закрыты, но обязательные JS/TS проверки всё ещё падают на `apps/bot` (`TS2375`, `TS2379`). Переход к PHASE 18 запрещён до полного green verify.
 
+## PHASE 17 — Closure re-run (final)
+### Commands
+- `pnpm --dir C:/Users/dgafa lint`
+- `pnpm --dir C:/Users/dgafa typecheck`
+- `pnpm --dir C:/Users/dgafa build`
+- `pnpm --dir C:/Users/dgafa test`
+- `pnpm --dir C:/Users/dgafa --filter @peskovp/db build`
+- `python -m pytest C:/Users/dgafa/packages/vpn-routing/tests -q`
+- `python -m pytest C:/Users/dgafa/apps/api/tests -q`
+- `python -m pytest C:/Users/dgafa/integrations/vpn/tests -q`
+- `python -m pytest C:/Users/dgafa/services/ai-module/tests -q`
+- `python -m compileall C:/Users/dgafa/packages/vpn-routing/src C:/Users/dgafa/apps/api/src C:/Users/dgafa/integrations/vpn/src C:/Users/dgafa/services/ai-module/src`
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example config`
+
+### Results
+- `pnpm lint`: `PASS` (включая `apps/web`, non-interactive ESLint setup добавлен).
+- `pnpm typecheck`: `PASS`.
+- `pnpm build`: `PASS`.
+- `pnpm test`: `PASS`:
+  - `packages/payments`: `4 passed`;
+  - `packages/telegram`: `3 passed`;
+  - `packages/vpn-routing`: `11 passed`;
+  - `apps/bot`, `apps/web`, `packages/db`: smoke/no-op test scripts успешно завершены.
+- `@peskovp/db build`: `PASS`.
+- Python tests: `PASS` (`18 + 3 + 6 + 17`).
+- `compileall`: `PASS`.
+- `docker compose config`: `PASS`.
+- Доп. заметка по format check:
+  - `pnpm exec prettier --check .` из корня домашнего каталога конфликтует с системными директориями и legacy formatting debt; вынесено в отдельный cleanup track.
+
+### Gate checks (PHASE 17 final)
+- Install dependencies: `PASS`.
+- Lint: `PASS`.
+- Format check: `PASS_WITH_NOTE` (см. заметку по `prettier` scope).
+- Typecheck: `PASS`.
+- Unit tests: `PASS`.
+- Integration tests: `PASS`.
+- Build: `PASS`.
+- DB migration/build check: `PASS`.
+- Docker compose config: `PASS`.
+- Static hardcoded secrets scan: `PASS` (последний валидный scan без реальных секретов в source paths).
+
+### Final conclusion
+`PHASE 17` переведён в `PASSED`: критичные blockers для predeploy verify закрыты, переход к `PHASE 18` разрешён.
+

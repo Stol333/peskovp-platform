@@ -755,3 +755,48 @@
 - Step 4 — Gate closure criteria:
   - PHASE 17 переводится в `PASSED` только если JS/TS и DB pipeline проходят без critical/high blockers;
   - при новых блокерах фиксируется честный `BLOCKED` с evidence и обновлённым mitigation plan.
+## PHASE 17 — TEST BEFORE DEPLOY (CLOSURE RE-RUN)
+### Read
+- Зафиксирован пользовательский запрос завершить workspace verification и закоммитить изменения после устранения TS-блокеров.
+- Перепроверены актуальные gate-критерии PHASE 17 и текущие PHASE-артефакты.
+### Plan
+- Повторно пройти полный verify-контур для workspace и regression safety.
+- Обновить gate-артефакты по фактическим результатам и зафиксировать коммит.
+### Risk check
+- Риск ложного `PASSED` при частичной проверке исключён: выполнены `lint/typecheck/build/test`, DB build, Python tests/compile и compose config.
+- Отдельно отмечен non-gating риск: global prettier check из домашнего каталога затрагивает системные директории с ограниченными правами и legacy formatting debt вне текущего scope.
+### Backup / rollback check
+- Фаза верификационная и кодовая; server-side apply не выполнялся.
+- Backup/rollback инварианты PHASE 04 не нарушены.
+### Execute
+- Закрыты блокеры TS/module resolution:
+  - `apps/bot/src/config.ts`, `apps/bot/src/main.ts`;
+  - `apps/web/src/lib/api-response.ts`;
+  - `apps/web/app/api/payments/webhook/{telegram,yookassa}/route.ts`;
+  - `packages/{payments,telegram,vpn-routing}/package.json`.
+- Для `apps/web` добавлена non-interactive lint-конфигурация:
+  - `apps/web/.eslintrc.json`;
+  - devDeps `eslint`, `eslint-config-next` в `apps/web/package.json`.
+- Для стабильного test-run в `packages/vpn-routing` добавлен `vitest.config.ts` (run только TS tests, исключены сгенерированные `.test.js/.test.d.ts`).
+- Выполнены проверки:
+  - `pnpm --dir C:/Users/dgafa lint` -> `PASS`;
+  - `pnpm --dir C:/Users/dgafa typecheck` -> `PASS`;
+  - `pnpm --dir C:/Users/dgafa build` -> `PASS`;
+  - `pnpm --dir C:/Users/dgafa test` -> `PASS`;
+  - `pnpm --dir C:/Users/dgafa --filter @peskovp/db build` -> `PASS`;
+  - `python -m pytest C:/Users/dgafa/packages/vpn-routing/tests -q` -> `18 passed`;
+  - `python -m pytest C:/Users/dgafa/apps/api/tests -q` -> `3 passed`;
+  - `python -m pytest C:/Users/dgafa/integrations/vpn/tests -q` -> `6 passed`;
+  - `python -m pytest C:/Users/dgafa/services/ai-module/tests -q` -> `17 passed, 1 warning`;
+  - `python -m compileall ...` -> `PASS`;
+  - `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example config` -> `PASS`.
+### Verify
+- Workspace verification completed with green results на обязательных gate-командах PHASE 17.
+- Compose config и Python regression safety checks подтверждены.
+- Дополнительная заметка: `pnpm exec prettier --check .` из корня домашнего каталога конфликтует с системными папками и требует отдельной cleanup-фазы.
+### Record
+- Обновлены `TODO_PLAN_V6_EXECUTION.md`, `reports/34_v6_implementation_log.md`, `reports/35_vpn_v2_test_matrix.md`.
+### Gate
+- `PHASE 17`: `PASSED`.
+### Next
+- Разрешён переход к `PHASE 18` (local server deploy without public nginx route) по правилам gate-модели.
