@@ -8,6 +8,8 @@
 - `docker/scripts/postgres_restore.sh`
 - `docker/scripts/redis_backup.sh`
 - `docker/scripts/redis_restore.sh`
+- `infra/scripts/phase16_prepare_env.py`
+- `infra/scripts/phase16_validate_env.py`
 ## Port/collision check перед запуском
 Проверить, что выбранный app bind порт (`3100` по умолчанию) свободен:
 - Linux: `ss -ltnp | grep -E ':3000|:3100'`
@@ -27,6 +29,21 @@
    - `AI_API_AUTH_TOKEN`
    - `VPN_API_TOKEN` (если используется)
 3. Проверить, что файл не попадает в git.
+## PHASE 16: server-only env generation
+Для генерации внутренних секретов (`AUTH_SECRET`, `NEXTAUTH_SECRET`, `AI_API_AUTH_TOKEN`, `VPN_V2_CANARY_SALT`) использовать:
+`python infra/scripts/phase16_prepare_env.py --template docker/env/prod.env.example --output /etc/peskovp/.env.production`
+Важно:
+- команда не печатает секретные значения в stdout;
+- external provider secrets (`OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`, payment secrets) заполнить вручную из secret manager.
+## PHASE 16: env validation
+Проверка структуры шаблона:
+`python infra/scripts/phase16_validate_env.py --env-file docker/env/prod.env.example --mode template`
+Проверка server env:
+`python infra/scripts/phase16_validate_env.py --env-file /etc/peskovp/.env.production --mode production`
+Критерии production validation:
+- обязательные переменные присутствуют;
+- internal routing: `DATABASE_URL` указывает на `postgres`, `REDIS_URL` на `redis`;
+- для core secrets отсутствуют placeholder значения.
 ## Валидация compose (обязательный gate)
 Перед любым `up`:
 `docker compose -f docker/docker-compose.prod.yml --env-file /etc/peskovp/.env.production config`

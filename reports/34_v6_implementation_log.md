@@ -595,3 +595,71 @@
 - `PHASE 15`: `PASSED`.
 ### Next
 - Переход к `PHASE 16` (production env hardening).
+## PHASE 16 — PRODUCTION ENV
+### Read
+- Сверены обязательные требования PHASE 16:
+  - `.env.example` check;
+  - `.env.production` только на сервере;
+  - генерация `AUTH_SECRET`/`NEXTAUTH_SECRET`;
+  - internal `DATABASE_URL`/`REDIS_URL`;
+  - `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`, payment secrets только через env;
+  - проверка `.gitignore`;
+  - без вывода секретов в logs/reports.
+- Проверены текущие файлы:
+  - `.gitignore`
+  - `.env.example`
+  - `docker/env/prod.env.example`
+  - `docker/docker-compose.prod.yml`
+  - `docs/PRODUCTION_DEPLOY.md`
+### Plan
+- Ужесточить env-шаблоны и ignore-правила.
+- Добавить server-only prepare/validate automation для `.env.production`.
+- Проверить валидацию в template/prod режимах без раскрытия секретов.
+### Risk check
+- Risk утечки секретов через git и логи при неверной подготовке env.
+- Risk неправильного routing для DB/Redis при external URL.
+- Risk запуска с placeholder secrets в production.
+### Backup / rollback check
+- Фаза локальная конфигурационная (только файлы репозитория, без server apply).
+- Инварианты backup/rollback из PHASE 04 сохранены.
+### Execute
+- Обновлён `.gitignore`:
+  - добавлены `.env.production`, `.env.production.*`.
+- Обновлены env templates:
+  - `.env.example`
+  - `docker/env/prod.env.example`
+  - добавлены `AUTH_SECRET`, `NEXTAUTH_SECRET`, `AI_API_AUTH_TOKEN`,
+    `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, payment secret vars.
+- Обновлён `docker/docker-compose.prod.yml`:
+  - web-app получает auth/telegram/payment env vars только из server env.
+- Обновлён runbook `docs/PRODUCTION_DEPLOY.md`:
+  - добавлены PHASE 16 шаги генерации и валидации env.
+- Добавлены automation scripts:
+  - `infra/scripts/phase16_prepare_env.py`
+  - `infra/scripts/phase16_validate_env.py`
+### Verify
+- Template validation:
+  - `python C:\\Users\\dgafa\\infra\\scripts\\phase16_validate_env.py --env-file C:\\Users\\dgafa\\docker\\env\\prod.env.example --mode template`
+  - Result: `OK` (с ожидаемым warning про placeholder в template).
+- Production-like validation (без раскрытия секретов):
+  - `python C:\\Users\\dgafa\\infra\\scripts\\phase16_prepare_env.py --template C:\\Users\\dgafa\\docker\\env\\prod.env.example --output C:\\Users\\dgafa\\.phase16_tmp.env`
+  - `python C:\\Users\\dgafa\\infra\\scripts\\phase16_validate_env.py --env-file C:\\Users\\dgafa\\.phase16_tmp.env --mode production`
+  - Result: `OK`.
+  - Временный файл удалён: `Remove-Item C:\\Users\\dgafa\\.phase16_tmp.env -Force`.
+- `.gitignore` check:
+  - `git check-ignore -v .env.production`
+  - Result: `.gitignore:9:.env.production .env.production`.
+- Compose consistency after env hardening:
+  - `docker compose -f C:\\Users\\dgafa\\docker\\docker-compose.prod.yml --env-file C:\\Users\\dgafa\\docker\\env\\prod.env.example config --format json`
+  - структурные проверки: `no_public_80_443=true`, `postgres_internal_only=true`, `redis_internal_only=true`.
+- Secret hygiene scan (reports):
+  - regex scan по `reports/` на private-key/api-token patterns — совпадений не найдено.
+### Record
+- PHASE 16 результаты зафиксированы в:
+  - `reports/34_v6_implementation_log.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `docs/PRODUCTION_DEPLOY.md`
+### Gate
+- `PHASE 16`: `PASSED`.
+### Next
+- Переход к `PHASE 17` (test before deploy).

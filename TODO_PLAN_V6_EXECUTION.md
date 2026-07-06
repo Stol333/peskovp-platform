@@ -25,8 +25,8 @@ Read → Plan → Risk check → Backup/Rollback check → Execute → Verify �
 [x] PHASE 13 — VPN ROUTING ENGINE AND PROVISIONING
 [x] PHASE 14 — AI/GPT MODULE
 [x] PHASE 15 — DOCKER COMPOSE PRODUCTION REFACTOR
-[/] PHASE 16 — PRODUCTION ENV
-[ ] PHASE 17 — TEST BEFORE DEPLOY
+[x] PHASE 16 — PRODUCTION ENV
+[/] PHASE 17 — TEST BEFORE DEPLOY
 [ ] PHASE 18 — LOCAL SERVER DEPLOY WITHOUT PUBLIC NGINX ROUTE
 [ ] PHASE 19 — RF GATEWAY CANARY DEPLOY
 [ ] PHASE 20 — V2 SUBSCRIPTION CANARY
@@ -40,7 +40,7 @@ Read → Plan → Risk check → Backup/Rollback check → Execute → Verify �
 [ ] PHASE 28 — FINAL TEST MATRIX
 [ ] PHASE 29 — FINAL REPORT AND OWNER SUMMARY
 ## Current gate
-PHASE_16_IN_PROGRESS
+PHASE_17_IN_PROGRESS
 ## Safety locks
 - До закрытия PHASE 04 любые server-side действия только read-only.
 - Запрещено переходить к следующей phase без явного gate текущей phase (`PASSED` или честный `BLOCKED`).

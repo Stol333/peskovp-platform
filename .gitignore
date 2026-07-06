@@ -6,6 +6,8 @@ Thumbs.db
 
 # Secrets / env
 .env
+.env.production
+.env.production.*
 .env.local
 .env.*.local
 secrets/
