@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `V6 PHASE 17 — TEST BEFORE DEPLOY (BLOCKED: отсутствует node/npm/pnpm)`.
+Текущий этап: `V6 PHASE 17 — TEST BEFORE DEPLOY (BLOCKED: JS/TS lint-typecheck-build blockers)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -81,11 +81,16 @@
 
 ## Дорожная карта (обновление после PHASE 17 BLOCKED)
 1. Разблокировать зависимости toolchain:
-   - установить Node.js LTS;
-   - активировать `pnpm@9.12.3` через Corepack;
-   - подтвердить `node/npm/pnpm` версии.
-2. Повторно выполнить обязательный predeploy-цикл PHASE 17:
+   - запустить `pwsh -File C:/Users/dgafa/infra/scripts/phase17_unblock_and_verify.ps1 -InstallNodeIfMissing`;
+   - статус: выполнено (`node v24.18.0`, `npm v11.16.0`, `pnpm v9.12.3`).
+2. Закрыть текущие JS/TS блокеры:
+   - статус `packages/vpn-routing`, `packages/telegram`, `packages/payments`: исправлено;
+   - `prettier` подключён в workspace;
+   - остаются `apps/bot` ошибки `exactOptionalPropertyTypes`:
+     - `apps/bot/src/config.ts`;
+     - `apps/bot/src/main.ts`.
+3. Повторно выполнить обязательный predeploy-цикл PHASE 17:
    - `pnpm install`, `lint`, `prettier --check`, `typecheck`, `build`, `@peskovp/db build`;
    - контрольные Python test/compile и `docker compose config`.
-3. Закрыть PHASE 17 статусом `PASSED` и только после этого перейти к PHASE 18.
-4. После PHASE 18 продолжить canary-ветку PHASE 19-20 (RF gateway + V2 subscription canary) с rollback-ready контролем.
+4. Закрыть PHASE 17 статусом `PASSED` и только после этого перейти к PHASE 18.
+5. После PHASE 18 продолжить canary-ветку PHASE 19-20 (RF gateway + V2 subscription canary) с rollback-ready контролем.

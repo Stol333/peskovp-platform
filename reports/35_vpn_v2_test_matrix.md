@@ -56,8 +56,8 @@
 - static scan на hardcoded secrets.
 
 ### Commands
-- JS/toolchain and predeploy checks:
-  - `node --version; npm --version; pnpm --version; pnpm install; pnpm lint; pnpm exec prettier --check .; pnpm typecheck; pnpm build; pnpm --filter @peskovp/db build`
+- Automated scenario:
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File C:/Users/dgafa/infra/scripts/phase17_unblock_and_verify.ps1 -InstallNodeIfMissing`
 - Python unit/integration tests:
   - `python -m pytest C:/Users/dgafa/packages/vpn-routing/tests -q`
   - `python -m pytest C:/Users/dgafa/apps/api/tests -q`
@@ -74,40 +74,49 @@
 
 ### Results
 - Toolchain:
-  - `node`: not recognized.
-  - `npm`: not recognized.
-  - `pnpm`: not recognized.
+  - `node`: `v24.18.0`.
+  - `npm`: `11.16.0`.
+  - `pnpm`: `9.12.3`.
+- JS/TS pipeline:
+  - `pnpm install`: `PASS`.
+  - `pnpm lint`: `PASS` для `packages/*`; `BLOCKED` на `apps/bot` (`TS2375`, `TS2379`).
+  - `pnpm exec prettier --check .`: `PASS`.
+  - `pnpm typecheck`: `PASS` для `packages/*`; `BLOCKED` на `apps/bot` (`TS2375`, `TS2379`).
+  - `pnpm build`: `BLOCKED`:
+    - `apps/bot/src/config.ts` (`TS2375`, `miniAppUrl: string | undefined`);
+    - `apps/bot/src/main.ts` (`TS2379`, `secret_token: string | undefined`).
+  - `pnpm --filter @peskovp/db build`: `PASS`.
 - Python tests:
-  - `packages/vpn-routing/tests`: `18 passed in 0.10s`.
-  - `apps/api/tests`: `3 passed in 0.13s`.
-  - `integrations/vpn/tests`: `6 passed in 0.05s`.
-  - `services/ai-module/tests`: `17 passed, 1 warning in 1.28s`.
+  - `packages/vpn-routing/tests`: `18 passed in 0.05s`.
+  - `apps/api/tests`: `3 passed in 0.10s`.
+  - `integrations/vpn/tests`: `6 passed in 0.03s`.
+  - `services/ai-module/tests`: `17 passed, 1 warning in 0.86s`.
 - Python compile:
   - `compileall` completed without syntax errors.
 - Docker:
   - explicit status marker: `DOCKER_COMPOSE_CONFIG_OK`.
 - Secret scan:
-  - `gitleaks` отсутствует в окружении.
-  - Regex match найден только в тестовых фикстурах:
-    - `services/ai-module/tests/test_main_auth_api.py`
-    - `services/ai-module/tests/test_service_phase14.py`
-    - `services/ai-module/tests/test_log_summarizer.py`
-    - `services/ai-module/tests/test_redaction.py`
-    - `integrations/vpn/tests/test_provider.py`
-  - В source (`services/ai-module/src`, `integrations/vpn/src`) совпадений не найдено.
+  - последний валидный результат: совпадения только в synthetic test fixtures, source paths clean.
+- Automation note:
+  - сценарий ранее печатал `PHASE 17 verify sequence completed` даже при ошибках JS/TS;
+  - для fail-fast поведения добавлено `$PSNativeCommandUseErrorActionPreference = $true` в скрипт.
+- Workspace re-verify:
+  - `pnpm --dir C:/Users/dgafa typecheck`
+  - `pnpm --dir C:/Users/dgafa build`
+  - Result: `BLOCKED` только на `apps/bot`; `packages/vpn-routing`, `packages/telegram`, `packages/payments` проходят.
 
 ### Gate checks (PHASE 17)
-- Install dependencies: `BLOCKED` (нет `pnpm`).
-- Lint: `BLOCKED` (нет `pnpm`).
-- Format check: `BLOCKED` (нет `pnpm`).
-- Typecheck: `BLOCKED` (нет `pnpm`).
+- Install dependencies: `PASS`.
+- Lint: `BLOCKED` (`apps/bot` `TS2375`, `TS2379`).
+- Format check: `PASS`.
+- Typecheck: `BLOCKED` (`apps/bot` `TS2375`, `TS2379`).
 - Unit tests: `PASS`.
 - Integration tests: `PASS`.
-- Build: `BLOCKED` для JS/TS контура (`pnpm` отсутствует), `PASS` для Python compile.
-- DB migration check: `BLOCKED` (невозможно выполнить пакетный DB-check без `pnpm`).
+- Build: `BLOCKED` (`apps/bot` TypeScript errors).
+- DB migration check: `PARTIAL` (`@peskovp/db build` зелёный, общий build pipeline красный).
 - Docker compose config: `PASS`.
-- Static hardcoded secrets scan: `PASS` для source-кода (совпадения только в synthetic test fixtures).
+- Static hardcoded secrets scan: `PASS`.
 
 ### Conclusion
-`PHASE 17` зафиксирован как `BLOCKED`: критичный blocker — отсутствие `node/npm/pnpm`, что блокирует обязательные JS/TS проверки и DB migration check. Переход к PHASE 18 запрещён до установки toolchain и повторного полного verify.
+`PHASE 17` остаётся `BLOCKED`: toolchain и package-level блокеры закрыты, но обязательные JS/TS проверки всё ещё падают на `apps/bot` (`TS2375`, `TS2379`). Переход к PHASE 18 запрещён до полного green verify.
 
