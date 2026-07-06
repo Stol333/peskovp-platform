@@ -1,7 +1,7 @@
 # PESKOVP Platform
 ## Назначение
 Этот репозиторий содержит инфраструктурные артефакты и кодовую базу платформы PESKOVP.
-Текущий этап: `Phase 15 — Final report (in progress)`.
+Текущий этап: `Phase 15 — Final report (completed)`.
 
 ## Базовая структура
 - `apps/api` — backend API (Phase 7+).
@@ -59,13 +59,13 @@
 - Runtime ограничение Docker на текущем хосте явно задокументировано как operational waiver.
 - Phase 14 закрыта: документационный набор переведён из scaffold в рабочий вид.
 ## Статус Phase 15 (Final report)
-- Финальный отчёт переведён в актуальный формат полного цикла (Phase 0-14) в `reports/09_final_report.md`.
+- Финальный отчёт переведён в актуальный формат полного цикла (Phase 00-15) в `reports/09_final_report.md`.
 - В отчёт включены:
   - итоги по безопасному выполнению фаз;
   - подтверждённые результаты тестирования и node-by-node debugging;
   - зафиксированный Docker runtime waiver на текущем хосте;
   - набор рекомендаций для post-phase развития.
-- Phase 15 находится в работе до финального согласования и публикации.
+- Phase 15 завершена: документация финализирована, PR подготовлен и передан в review.
 
 ## Следующий этап
-`Phase 15 — Final report` (финализация и публикация).
+Code review и merge PR `#4` (`feat: V6 controlled VPN re-architecture baseline and canary groundwork`).

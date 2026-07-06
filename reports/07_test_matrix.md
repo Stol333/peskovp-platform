@@ -130,8 +130,9 @@
 - Process documentation consistency: passed (`docs/CONTRIBUTING.md` дополнен checklist для operational status/waiver).
 - Traceability consistency: passed (ссылки на `README.md`, `TODO_PLAN.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md` синхронизированы).
 - Phase status decision: completed (documentation deliverables сформированы и согласованы по структуре).
-## Phase 15 Checks (in progress)
+## Phase 15 Checks (completed)
 - Final report refresh: passed (`reports/09_final_report.md` переведён в full-cycle формат после Phase 14).
 - Final report consistency: passed (содержимое согласовано с `TODO_PLAN.md`, `README.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md`).
-- Outstanding action: final publication workflow (commit/push и финальное подтверждение закрытия Phase 15).
+- Publication workflow: passed (PR `#4` открыт, ready-for-review, команда уведомлена).
+- Workspace cleanup: passed (временная документация архивирована, локальные `__pycache__` и `.pytest_cache` удалены).
 

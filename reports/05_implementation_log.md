@@ -290,12 +290,17 @@
 - Ограничение Docker runtime на текущем хосте оформлено как отдельный operational документ с критериями снятия waiver.
 - Phase 14 закрыта: документационные deliverables сформированы и синхронизированы с отчётностью.
 
-## Phase 15 (execution, in progress)
-- Обновлён финальный отчёт:
-  - `reports/09_final_report.md` переведён из milestone формата `Phase 0-5` в full-cycle формат по состоянию после Phase 14.
-- В Phase 15 отчёте зафиксированы:
-  - статус выполнения фаз `00-14`;
-  - операционные ограничения и waiver-контекст;
-  - итоговые риски и дальнейшие профессиональные шаги.
-- Текущий этап — финализация и публикация итогового отчёта.
+## Phase 15 (execution, completed)
+- Финализированы фазовые документы и закрыт цикл `Phase 00-15`:
+  - `README.md`,
+  - `TODO_PLAN.md`,
+  - `docs/README.md`,
+  - `reports/09_final_report.md`.
+- Выполнен release handoff:
+  - создан PR `#4` (`feat: V6 controlled VPN re-architecture baseline and canary groundwork`),
+  - PR переведён в ready-for-review и прокомментирован для команды.
+- Выполнен workspace cleanup:
+  - временная документация архивирована в `artifacts/documentation_archives/20260706_pr4_closeout`,
+  - удалены генерируемые локальные кэши (`__pycache__`, `.pytest_cache`) из проектных каталогов.
+- Итог: документация финализирована, рабочее пространство очищено, задача передана в стадию review.
 

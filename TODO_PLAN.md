@@ -22,10 +22,10 @@
 - [x] 12 Testing
 - [x] 13 Node-by-node debugging
 - [x] 14 Documentation
-- [ ] 15 Final report
+- [x] 15 Final report
 
 ## Current Gate
-Phase 15 in progress (final report updated to full-cycle draft and pending final publish).
+Phase cycle `00-15` completed. Current gate: PR `#4` находится в review.
 ## Phase 12 Preparation
 - Entry condition confirmed: Phase 11 hardening завершён, верифицирован и влит в `master`.
 - Test scope for Phase 12:
@@ -65,12 +65,12 @@ Phase 15 in progress (final report updated to full-cycle draft and pending final
 - Docker runtime ограничение на текущем хосте задокументировано как operational waiver (без блокировки движения по фазам).
 - Phase 14 закрыта (documentation deliverables подготовлены и синхронизированы).
 ## Phase 15 Progress
-- Финальный отчёт `reports/09_final_report.md` обновлён из milestone-only формата в full-cycle формат (Phase 0-14).
+- Финальный отчёт `reports/09_final_report.md` обновлён до full-cycle формата (Phase 00-15).
 - В отчёте зафиксированы:
   - выполненные этапы и ключевые артефакты;
   - текущие ограничения/waivers;
   - блок рисков и следующие профессиональные шаги.
-- Phase 15 находится в работе до финального согласования и публикации.
+- Phase 15 закрыта: финальная документация согласована, PR открыт и помечен ready for review.
 
 ## Phase 6 Preflight (ready)
 - Input baseline fixed: Phase 0-5 closed and validated.
