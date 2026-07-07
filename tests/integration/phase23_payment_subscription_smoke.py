@@ -159,6 +159,55 @@ def run_step(
     return result
 
 
+def run_step_with_retry(
+    *,
+    artifacts_dir: Path,
+    name: str,
+    method: str,
+    url: str,
+    headers: dict[str, str] | None = None,
+    body: JsonObject | None = None,
+    expected_status: int,
+    retry_statuses: set[int],
+    retry_timeout_seconds: int,
+    retry_interval_seconds: int,
+) -> HttpResult:
+    deadline = time.monotonic() + retry_timeout_seconds
+    attempt = 0
+    last_result: HttpResult | None = None
+
+    while True:
+        attempt += 1
+        result = run_step(
+            artifacts_dir=artifacts_dir,
+            name=f"{name}_attempt_{attempt:02d}",
+            method=method,
+            url=url,
+            headers=headers,
+            body=body,
+            expected_status=None,
+        )
+        if result.status == expected_status:
+            return result
+
+        last_result = result
+        if result.status not in retry_statuses or time.monotonic() >= deadline:
+            break
+
+        print(
+            f"[retry] {name} attempt {attempt}: expected={expected_status} got={result.status}; "
+            f"waiting {retry_interval_seconds}s"
+        )
+        time.sleep(retry_interval_seconds)
+
+    expect(
+        False,
+        f"{name}: expected HTTP {expected_status}, got {last_result.status if last_result else 'n/a'}. "
+        f"Body: {last_result.body_text if last_result else 'n/a'}",
+    )
+    raise AssertionError("unreachable")
+
+
 def wait_until(
     *,
     artifacts_dir: Path,
@@ -200,8 +249,10 @@ def main() -> int:
     base_url = args.base_url.rstrip("/")
     artifacts_dir = Path(args.artifacts_dir)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
+    run_suffix = str(time.time_ns())
 
     print(f"[start] PHASE 23 integration smoke against {base_url}")
+    print(f"[context] run_suffix={run_suffix}")
 
     health_url = f"{base_url}/api/health"
     create_url = f"{base_url}/api/payments/create"
@@ -229,15 +280,32 @@ def main() -> int:
         "currency": "RUB",
         "provider": "telegram_stars",
     }
+    create_1_key = f"phase23-ci-create-1-{run_suffix}"
+    create_2_key = f"phase23-ci-create-2-{run_suffix}"
+    create_3_key = f"phase23-ci-create-3-renew-{run_suffix}"
+    webhook_success_key = f"phase23-ci-webhook-success-1-{run_suffix}"
+    webhook_failed_key = f"phase23-ci-webhook-failed-2-{run_suffix}"
+    webhook_invalid_secret_key = f"phase23-ci-webhook-invalid-secret-{run_suffix}"
+    webhook_renew_key = f"phase23-ci-webhook-renew-3-{run_suffix}"
+    event_success_1 = f"phase23-ci-event-success-1-{run_suffix}"
+    event_failed_2 = f"phase23-ci-event-failed-2-{run_suffix}"
+    event_invalid_secret = f"phase23-ci-event-invalid-secret-{run_suffix}"
+    event_renew_3 = f"phase23-ci-event-renew-3-{run_suffix}"
+    charge_success_1 = f"ci_charge_success_1_{run_suffix}"
+    charge_failed_2 = f"ci_charge_failed_2_{run_suffix}"
+    charge_renew_3 = f"ci_charge_renew_3_{run_suffix}"
 
-    create_1 = run_step(
+    create_1 = run_step_with_retry(
         artifacts_dir=artifacts_dir,
         name="create_intent_new",
         method="POST",
         url=create_url,
-        headers={"x-idempotency-key": "phase23-ci-create-1"},
+        headers={"x-idempotency-key": create_1_key},
         body=create_body,
         expected_status=201,
+        retry_statuses={0, 404, 500, 502, 503, 504},
+        retry_timeout_seconds=90,
+        retry_interval_seconds=4,
     )
     create_1_json = as_object(create_1.body_json, "create_intent_new: response must be JSON object")
     expect(create_1_json.get("ok") is True, "create_intent_new: ok must be true")
@@ -250,7 +318,7 @@ def main() -> int:
         name="create_intent_replay",
         method="POST",
         url=create_url,
-        headers={"x-idempotency-key": "phase23-ci-create-1"},
+        headers={"x-idempotency-key": create_1_key},
         body=create_body,
         expected_status=200,
     )
@@ -265,14 +333,14 @@ def main() -> int:
     )
 
     webhook_headers_ok = {
-        "x-idempotency-key": "phase23-ci-webhook-success-1",
+        "x-idempotency-key": webhook_success_key,
         "x-payments-webhook-secret": args.webhook_secret,
     }
     webhook_body_success_1 = {
-        "eventId": "phase23-ci-event-success-1",
+        "eventId": event_success_1,
         "paymentId": payment_id_1,
         "status": "succeeded",
-        "telegramChargeId": "ci_charge_success_1",
+        "telegramChargeId": charge_success_1,
     }
     webhook_success_1 = run_step(
         artifacts_dir=artifacts_dir,
@@ -321,7 +389,7 @@ def main() -> int:
         name="create_intent_second_new",
         method="POST",
         url=create_url,
-        headers={"x-idempotency-key": "phase23-ci-create-2"},
+        headers={"x-idempotency-key": create_2_key},
         body={**create_body, "planId": "phase23-quarterly"},
         expected_status=201,
     )
@@ -335,14 +403,14 @@ def main() -> int:
         method="POST",
         url=webhook_url,
         headers={
-            "x-idempotency-key": "phase23-ci-webhook-failed-2",
+            "x-idempotency-key": webhook_failed_key,
             "x-payments-webhook-secret": args.webhook_secret,
         },
         body={
-            "eventId": "phase23-ci-event-failed-2",
+            "eventId": event_failed_2,
             "paymentId": payment_id_2,
             "status": "failed",
-            "telegramChargeId": "ci_charge_failed_2",
+            "telegramChargeId": charge_failed_2,
         },
         expected_status=200,
     )
@@ -359,11 +427,11 @@ def main() -> int:
         method="POST",
         url=webhook_url,
         headers={
-            "x-idempotency-key": "phase23-ci-webhook-invalid-secret",
+            "x-idempotency-key": webhook_invalid_secret_key,
             "x-payments-webhook-secret": "ci-phase23-invalid-secret",
         },
         body={
-            "eventId": "phase23-ci-event-invalid-secret",
+            "eventId": event_invalid_secret,
             "paymentId": payment_id_2,
             "status": "succeeded",
         },
@@ -375,7 +443,7 @@ def main() -> int:
         name="create_intent_renew_new",
         method="POST",
         url=create_url,
-        headers={"x-idempotency-key": "phase23-ci-create-3-renew"},
+        headers={"x-idempotency-key": create_3_key},
         body={**create_body},
         expected_status=201,
     )
@@ -389,14 +457,14 @@ def main() -> int:
         method="POST",
         url=webhook_url,
         headers={
-            "x-idempotency-key": "phase23-ci-webhook-renew-3",
+            "x-idempotency-key": webhook_renew_key,
             "x-payments-webhook-secret": args.webhook_secret,
         },
         body={
-            "eventId": "phase23-ci-event-renew-3",
+            "eventId": event_renew_3,
             "paymentId": payment_id_3,
             "status": "succeeded",
-            "telegramChargeId": "ci_charge_renew_3",
+            "telegramChargeId": charge_renew_3,
         },
         expected_status=200,
     )
