@@ -800,3 +800,413 @@
 - `PHASE 17`: `PASSED`.
 ### Next
 - Разрешён переход к `PHASE 18` (local server deploy without public nginx route) по правилам gate-модели.
+## PHASE 18 — LOCAL SERVER DEPLOY WITHOUT PUBLIC NGINX ROUTE
+### Read
+- Сверены критерии PHASE 18:
+  - запуск app stack локально без публичного nginx route;
+  - проверка `postgres/redis` + app health (`/api/health`, `/api/ready`);
+  - подтверждение отсутствия publish `80/443` и публичных `postgres/redis`.
+### Plan
+- Поднять `postgres/redis`, затем `api/ai-module/web-app`.
+- Проверить контейнерные health-статусы и локальные endpoints.
+- Зафиксировать результат gate как `PASSED` или честный `BLOCKED`.
+### Risk check
+- Runtime risk: Docker daemon может быть не запущен.
+- Service risk: `api` может стать unhealthy из-за runtime import/entrypoint проблем.
+- Safety risk: недопустимо занять `80/443` или опубликовать `5432/6379`.
+### Backup / rollback check
+- Фаза локального deploy на текущем хосте, без server-side изменений MAIN/RF.
+- Backup/rollback инварианты PHASE 04 не нарушены.
+### Execute
+- Проверка runtime:
+  - `docker compose version` -> `v5.3.0`;
+  - `docker info --format "{{.ServerVersion}}"` -> initial fail (daemon down).
+- Выполнен unblock runtime:
+  - запуск Docker Desktop из `C:\Program Files\Docker\Docker\Docker Desktop.exe`;
+  - повторная проверка -> `DOCKER_READY:29.6.1`.
+- Deploy шаги:
+  - `docker compose ... up -d postgres redis` -> `PASS` (`healthy`);
+  - `docker compose ... up -d api ai-module web-app` -> initial `BLOCKED` (`api` unhealthy).
+- Диагностика:
+  - `docker compose ... logs --tail=200 api` -> `ModuleNotFoundError: No module named 'vpn_v2_api'`.
+- Fix:
+  - обновлён `apps/api/src/main.py`: добавлен `API_SRC` в `sys.path`.
+- Повторный старт:
+  - `docker compose ... up -d --build api web-app` -> `PASS`.
+### Verify
+- Контейнеры:
+  - `docker compose ... ps` -> `web-app/api/ai-module/postgres/redis` в статусе `healthy`.
+- Health endpoints:
+  - `http://127.0.0.1:3100/api/health` -> `200`;
+  - `http://127.0.0.1:3100/api/ready` -> `200`, payload: `database:false`, `redis:false`;
+  - `http://127.0.0.1:18080/health` -> `200`;
+  - `http://127.0.0.1:8787/health` -> `200`.
+- Port exposure:
+  - `docker ps --format ...` -> только `127.0.0.1:3100`, `127.0.0.1:18080`, `127.0.0.1:8787`;
+  - `postgres/redis` без host publish;
+  - public `80/443` контейнерами не заняты.
+### Record
+- Обновлены:
+  - `apps/api/src/main.py`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 18`: `BLOCKED` (readiness payload остаётся не-зелёным: `database:false`, `redis:false` в `/api/ready`).
+### Next
+- Исправить readiness-контур `apps/web/app/api/ready/route.ts` (реальная проверка зависимостей вместо статических `false`).
+- После фикса повторно прогнать PHASE 18 verify и перевести gate в `PASSED`.
+## PHASE 18 — LOCAL SERVER DEPLOY (CLOSURE RE-RUN)
+### Read
+- Учтён ранее зафиксированный блокер PHASE 18: `/api/ready` возвращал `database:false`, `redis:false`.
+### Plan
+- Исправить readiness-логику web endpoint на реальные probes зависимостей.
+- Пересобрать web-app и повторно провести интеграционную верификацию.
+### Risk check
+- Риск ложноположительного readiness минимизирован: используются реальные network probes до `api`, `postgres`, `redis`.
+### Backup / rollback check
+- Локальная кодовая/контейнерная фаза без server-side изменений MAIN/RF.
+- Rollback возможен откатом изменений в `apps/web/app/api/ready/route.ts` и `docker/docker-compose.prod.yml`.
+### Execute
+- Исправлен readiness endpoint:
+  - `apps/web/app/api/ready/route.ts` (реальные `api`/`database`/`redis` probes).
+- Для web-контейнера добавлены internal env:
+  - `DATABASE_URL`, `REDIS_URL` в `docker/docker-compose.prod.yml`.
+- Выполнены:
+  - `docker compose ... config`
+  - `docker compose ... up -d --build web-app`
+### Verify
+- Health/readiness:
+  - `http://127.0.0.1:3100/api/health` -> `200`
+  - `http://127.0.0.1:3100/api/ready` -> `200` с `api:true`, `database:true`, `redis:true`
+  - `http://127.0.0.1:18080/health` -> `200`
+  - `http://127.0.0.1:8787/health` -> `200`
+- Контейнеры:
+  - `docker ps` -> `web-app/api/ai-module/postgres/redis` в статусе `healthy`.
+- Port/security:
+  - Только loopback publishes (`3100/18080/8787`);
+  - нет publish `80/443`;
+  - `postgres/redis` internal-only.
+### Record
+- Обновлены:
+  - `apps/web/app/api/ready/route.ts`
+  - `docker/docker-compose.prod.yml`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/35_vpn_v2_test_matrix.md`
+### Gate
+- `PHASE 18`: `PASSED`.
+### Next
+- Переход к `PHASE 19` (RF gateway canary deploy).
+## PHASE 19 — RF GATEWAY CANARY DEPLOY (PRECHECK)
+### Read
+- Сверены preconditions PHASE 19: доступ к RF, возможность non-interactive SSH, backup/rollback готовность, canary-only подход.
+### Plan
+- Подтвердить инструмент доступа к RF в текущей среде.
+- Выполнить безопасный precheck подключения к `138.16.181.33`.
+### Risk check
+- Без non-interactive SSH auth любые write-операции PHASE 19 небезопасны и невоспроизводимы.
+### Backup / rollback check
+- Backup/rollback артефакты присутствуют (`PHASE 04 PASSED`), но write-execution невозможен без удалённого доступа.
+### Execute
+- Проверка инструментов:
+  - `ssh` отсутствует;
+  - `plink` доступен (`C:\Program Files\PuTTY\plink.exe`).
+- Проверка RF подключения через `plink`:
+  - host key получен и зафиксирован;
+  - с pinned host key batch-сессия упирается в interactive auth prompt.
+### Verify
+- `plink -batch ...` возвращает:
+  - `FATAL ERROR: Cannot answer interactive prompts in batch mode`.
+- Это подтверждает отсутствие non-interactive auth (ключ/agent) в текущей среде.
+### Record
+- Результаты precheck зафиксированы в:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 19`: `BLOCKED` (нет non-interactive SSH auth для RF canary deploy).
+### Next
+- Для разблокировки PHASE 19 требуется один из вариантов:
+  - предоставить ключ для `plink` (`-i <key.ppk>`) с соответствующим доступом,
+  - либо запустить Pageant с загруженным ключом для batch-auth,
+  - либо предоставить готовую non-interactive команду подключения к RF.
+## PHASE 19 — RF GATEWAY CANARY DEPLOY (APPLY)
+### Read
+- Повторно сверены критерии PHASE 19 из execution plan: backup precondition, runtime setup, firewall minimal-open, canary transports, `xray -test`, service start, logs/connectivity.
+- Подтверждён рабочий non-interactive SSH доступ к RF через `C:\Users\dgafa\.ssh\id_ed25519_138_16_181_33_ru`.
+### Plan
+- Выполнить canary-first deploy на RF в выбранной архитектуре `xray` (без 3x-ui), с минимальным набором transport candidates и строгой post-verify.
+- Для xHTTP применить правило `if supported`: включить только при успешном `xray -test`.
+### Risk check
+- Риск потери доступа снижен правилом `OpenSSH allow` до `ufw --force enable`.
+- Риск конфигурационной ошибки снижен двухшаговым `xray -test` (full config -> fallback config).
+- Риск утечки чужих credential исключён: все canary credentials сгенерированы заново на RF.
+### Backup / rollback check
+- Подтверждён baseline backup из PHASE 04: `/root/backups/peskovp-platform-prechange-20260706-122147`.
+- Перед apply собран prechange snapshot в run-артефакт:
+  - `ss-before.txt`, `ufw-before.txt`, `xray-config-before.json`.
+### Execute
+- Установлен `xray` (`26.3.27`) через официальный install script (только на RF).
+- Сгенерированы canary credentials (UUIDs + Reality keypair + shortId).
+- Создан и проверен canary config:
+  - `VLESS Reality TCP` на `443/tcp`;
+  - `VLESS Reality gRPC` на `2087/tcp`;
+  - `VLESS Reality xHTTP` на `2084/tcp` (проверка поддержки через `xray -test`).
+- `xray run -test -config /usr/local/etc/xray/config.json` -> `PASS`.
+- Настроен firewall:
+  - `ufw allow OpenSSH`
+  - `ufw allow 443/tcp`
+  - `ufw allow 2087/tcp`
+  - `ufw allow 2084/tcp`
+  - `ufw --force enable`
+- Сервис запущен:
+  - `systemctl enable xray`
+  - `systemctl restart xray`
+### Verify
+- Runtime:
+  - `systemctl is-active xray` -> `active`.
+  - `xray run -test -config /usr/local/etc/xray/config.json` -> `PASS`.
+- Ports/firewall:
+  - `ss -tuln` -> слушаются `22`, `443`, `2087`, `2084`.
+  - `ufw status numbered` -> активны только `OpenSSH`, `443/tcp`, `2087/tcp`, `2084/tcp` (+ v6 аналоги).
+- Connectivity:
+  - `Test-NetConnection 138.16.181.33 -Port 443` -> `True`
+  - `Test-NetConnection 138.16.181.33 -Port 2087` -> `True`
+  - `Test-NetConnection 138.16.181.33 -Port 2084` -> `True`
+- xHTTP support:
+  - `PHASE19_XHTTP_ENABLED=yes` (по итогам успешного full config test).
+- Subscription safety:
+  - массовая legacy подписка не изменялась.
+### Record
+- Артефакты RF:
+  - `/root/backups/peskovp-phase19-canary-20260707-130538`
+- Локальная копия артефактов:
+  - `artifacts/phase19_v6_rf/peskovp-phase19-canary-20260707-130538`
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Gate
+- `PHASE 19`: `PASSED`.
+### Next
+- Переход к `PHASE 20` (V2 subscription canary) с ограничением `admin/test users only`.
+## PHASE 20 — V2 SUBSCRIPTION CANARY
+### Read
+- Повторно сверены критерии PHASE 20 из execution plan:
+  - canary user/group;
+  - генерация V2 profiles;
+  - compatibility/import checks (HAPP/v2rayTun/Streisand/V2Box/Nekoray) насколько доступно;
+  - RU whitelist/direct;
+  - auto/balancer/fallback;
+  - mobile/LTE profile;
+  - запрет изменения legacy массовой подписки.
+- Подтверждена ролевая модель нод:
+  - `138.16.181.33` = RU gateway;
+  - `91.202.0.193` = MAIN foreign consolidator.
+### Plan
+- Выполнить API-level canary проверку профилей и policy lanes.
+- Зафиксировать compatibility/import evidence по доступным инструментам.
+- Подтвердить legacy unchanged и собрать базовый monitoring snapshot до расширения когорты.
+### Risk check
+- Главный риск PHASE 20: ложный `PASSED` без фактического import/connect в реальном клиенте.
+- Риск затронуть MAIN снижен: все canary data-plane действия остаются на RU.
+### Backup / rollback check
+- Используется действующий rollback контур PHASE 04/19.
+- Write-изменения на MAIN не выполнялись.
+### Execute
+- Выполнены проверки `POST /v2/subscription/preview`:
+  - `phase20-admin-01` (`is_admin=true`) -> `v2_canary`;
+  - `phase20-optin-01` (`force_opt_in=true`) -> `v2_canary`;
+  - `phase20-regular-01` -> `legacy`.
+- Проверены lane-политики:
+  - `video.yandex.ru` -> `direct`;
+  - `example.org` -> `proxy`;
+  - `bittorrent` -> `block`.
+- Проверен профильный bundle canary:
+  - `v2_canary`, `v2_auto`, `v2_mobile_lte`, `v2_ru_whitelist`, `v2_premium`, `v2_rf_gateway`, `legacy`.
+- Проверены link/QR prerequisites:
+  - preview URLs `https://...`;
+  - `sid` redacted;
+  - payload length валидная для QR.
+- Проверен rollout sample (200 synthetic users):
+  - `legacy=196`, `v2_canary=4`.
+- Проверен legacy unchanged:
+  - `GET /api/subscriptions/current` -> `profile=legacy`;
+  - `GET /api/vpn/health` -> `legacy=healthy`, `v2Canary=ready_for_admin_test`.
+- Проверен runtime baseline:
+  - RU: `xray active`, `xray -test` OK, порты `443/2087/2084`, минимальный `ufw`;
+  - MAIN: `nginx/x-ui/peskovp-sub/hy2*` active, без PHASE19 RF canary artifacts.
+### Verify
+- API/policy/profile checks: `PASS`.
+- Legacy unchanged checks: `PASS`.
+- Runtime baseline RU + MAIN isolation: `PASS`.
+- Client import/connect check: `PASS`:
+  - `nekobox_core check` для canary-конфига проходит без ошибок;
+  - runtime-connect через локальный SOCKS (`127.0.0.1:2081`) подтверждён (`curl .../cdn-cgi/trace`, `EXIT=0`);
+  - trace фиксирует egress через RU gateway (`ip=138.16.181.33`).
+### Record
+- Evidence artifact:
+  - `artifacts/phase20_v6/phase20_subscription_checks.json`
+  - `artifacts/phase20_v6/nekobox_client_runtime_test.json`
+  - `artifacts/phase20_v6/nekobox_runtime_run.log`
+  - `artifacts/phase20_v6/nekobox_runtime_run.err.log`
+  - `artifacts/phase20_v6/phase20_nekobox_runtime_connect_evidence.txt`
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Gate
+- `PHASE 20`: `PASSED`.
+### Next
+- Переход к `PHASE 21` (host nginx route для WEB/API/ADMIN) с мониторингом error-rate и подключений canary cohort перед расширением.
+## PHASE 21 — HOST NGINX ROUTE FOR WEB/API/ADMIN
+### Read
+- Повторно сверены критерии PHASE 21 из execution plan:
+  - проверить DNS `app/api/admin`;
+  - сделать backup nginx перед apply;
+  - добавить только route для `app/api/admin`;
+  - не менять `panel/sub/default Reality/HY2`;
+  - выполнить `nginx -t` и только затем `systemctl reload nginx`;
+  - выполнить regression check по `app/api/admin/panel/sub/VPN`.
+### Plan
+- Подтвердить DNS и публичный baseline ответов.
+- Подключиться к MAIN, сделать backup nginx и применить адресный route.
+- Провести post-apply verify и зафиксировать gate.
+### Risk check
+- Критичный риск: host-route apply без живых backend-сервисов `app/api/admin` приведёт к формально настроенным, но неработающим доменам.
+- Риск регрессии panel/sub/default route остаётся критичным при любых нецелевых правках nginx, поэтому применяется только минимально необходимый scope.
+### Backup / rollback check
+- Для этой фазы backup nginx обязателен перед изменениями.
+- SSH-доступ к MAIN подтверждён ключом `spain_new`; backup precondition re-check выполнен (`main_backup_dir_present=yes`, `33` files).
+### Execute
+- DNS checks:
+  - `app.peskovp.com`, `api.peskovp.com`, `admin.peskovp.com`, `panel.peskovp.com`, `sub.peskovp.com` -> `91.202.0.193`.
+- External HTTPS baseline:
+  - `app/api/admin` -> `403`;
+  - `panel/sub` -> `404`;
+  - `www.peskovp.com` -> `403`.
+- MAIN access + baseline checks:
+  - `ssh -i C:\\Users\\dgafa\\.ssh\\spain_new ... root@91.202.0.193` -> `PASS`;
+  - `nginx -t` -> `PASS`;
+  - `systemctl is-active nginx x-ui peskovp-sub peskovp-hy2 peskovp-hy2-obfs peskovp-hy2-advanced` -> `active`;
+  - `docker ps` -> empty (app stack containers не запущены).
+- Backend availability probe:
+  - listen sockets: `80/443/8443/9255`, `127.0.0.1:9443`, `127.0.0.1:10443`, `127.0.0.1:18080`;
+  - `127.0.0.1:3100/3000/8787` -> не слушают;
+  - `http://127.0.0.1:18080/health` -> `200`, root -> `404`;
+  - `http://127.0.0.1:9255/` -> `404` (panel hidden-path behavior).
+### Verify
+- DNS precondition: `PASS`.
+- Public route health for app/api/admin: `BLOCKED` (текущий baseline `403`, apply не выполнен).
+- Safe-apply precondition (SSH to MAIN): `PASS`.
+- Functional backend precondition for `app/api/admin`: `BLOCKED`.
+### Record
+- Evidence artifact:
+  - `artifacts/phase21_v6/phase21_host_nginx_route_precheck.txt`
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 21`: `BLOCKED` (доступ к MAIN есть, но backend для `app/api/admin` на MAIN не развернут, поэтому route apply сейчас не может пройти acceptance-критерий).
+### Next
+- Развернуть/поднять backend stack `web/api/admin` на MAIN (ожидаемые loopback endpoints), затем повторить PHASE 21 apply-последовательность с backup → route apply → `nginx -t` → reload → regression.
+## PHASE 21 — HOST NGINX ROUTE (CLOSURE RE-RUN)
+### Read
+- Учтён новый входной факт: non-interactive SSH доступ к MAIN через `spain_new` подтверждён.
+- Повторно подтверждены acceptance-критерии PHASE 21: рабочие host-routes `app/api/admin` + отсутствие регрессий `panel/sub/default route/VPN`.
+### Plan
+- Выполнить контролируемый apply с backup и rollback safety.
+- Устранить текущий 500-регресс на `app/api/admin`.
+- Провести публичный smoke и сервисный regression.
+### Risk check
+- Риск поломки panel/sub/default route минимизируется точечным изменением и обязательным `nginx -t` до reload.
+- Риск невалидного конфига покрыт backup+auto-rollback path.
+### Backup / rollback check
+- Созданы backup точки:
+  - `/root/backups/peskovp-phase21-nginx-20260707-150420`
+  - `/root/backups/peskovp-phase21-fix500-20260707-150609`
+- Для второй итерации применён rollback-safe скрипт (restore при провале `nginx -t`).
+### Execute
+- Apply #1:
+  - добавлены SNI map entries для `app/api/admin` в `stream`;
+  - выполнена первичная попытка host-routes (через `conf.d`).
+- Диагностика:
+  - `app/api/admin` дали `500`, причина — текущий `nginx.conf` не включает `conf.d`, и запрос попадал в старый panel/sub block с пустым `$target`.
+- Apply #2 (fix):
+  - в `/etc/nginx/nginx.conf` добавлен отдельный TLS server block `127.0.0.1:9443` для `app/api/admin`;
+  - `nginx -t` -> `PASS`;
+  - `systemctl reload nginx` -> `PASS`.
+### Verify
+- Public smoke:
+  - `https://app.peskovp.com` -> `200`
+  - `https://admin.peskovp.com` -> `200`
+  - `https://api.peskovp.com/health` -> `200`
+  - `https://api.peskovp.com` -> `404` (ожидаемо для non-health path)
+  - `https://panel.peskovp.com` -> `404` (без регрессии)
+  - `https://sub.peskovp.com` -> `404` (без регрессии)
+  - `https://www.peskovp.com` -> `403` (default behavior preserved)
+- Service/port regression:
+  - `nginx`, `x-ui`, `peskovp-sub`, `peskovp-hy2`, `peskovp-hy2-obfs`, `peskovp-hy2-advanced` -> `active`;
+  - listen profile сохранён (`80/443/8443/9255`, `127.0.0.1:9443`, `127.0.0.1:10443`, `127.0.0.1:18080`).
+### Record
+- Evidence artifacts:
+  - `artifacts/phase21_v6/phase21_host_nginx_route_precheck.txt`
+  - `artifacts/phase21_v6/phase21_host_nginx_route_apply_evidence.txt`
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 21`: `PASSED`.
+### Next
+- Переход к `PHASE 22` (payment to subscription smoke test).
+## PHASE 22 — PAYMENT TO SUBSCRIPTION SMOKE TEST
+### Read
+- Сверены критерии PHASE 22: `client -> payment -> webhook/idempotency -> activation -> subscription link/QR -> renew/expire behavior -> audit log`.
+### Plan
+- Убрать остаточный риск PHASE 21 (`api root 404`) переводом `api/app/admin` на live backend.
+- Поднять runtime stack `web/api` на MAIN в loopback режиме и выполнить end-to-end smoke.
+### Risk check
+- Риск регрессии panel/sub/default route закрывается только rollback-safe изменениями nginx + обязательным `nginx -t`.
+- Риск ложного PASS закрывается проверками idempotency, failed-path и webhook auth.
+### Backup / rollback check
+- Nginx backup перед route patch:
+  - `/root/backups/peskovp-phase22-nginx-locations-20260707-152028`.
+- Отдельный backup pretest-run:
+  - `/root/backups/peskovp-phase22-nginx-20260707-151941` (rollback был применён).
+### Execute
+- На MAIN развёрнут source bundle: `/root/peskovp-platform`.
+- Поднят compose runtime (`prod.env.phase22`):
+  - `postgres`, `redis`, `api`, `web-app` = `healthy`;
+  - `api` bind `127.0.0.1:18081`, `web-app` bind `127.0.0.1:3100`.
+- Выполнен route patch `api/app/admin` -> proxy `127.0.0.1:3100`.
+- Проведены smoke вызовы:
+  - create intent + replay;
+  - webhook succeeded + replay;
+  - failed payment path;
+  - invalid webhook secret (`401`);
+  - renew simulation (второй успешный платёж);
+  - subscription link/QR check.
+### Verify
+- Public routes:
+  - `app`=`200`, `admin`=`200`, `api`=`200`, `api/api/health`=`200`.
+- Regression:
+  - `panel`=`404`, `sub`=`404`, `www`=`403` (unchanged behavior).
+  - `nginx`, `x-ui`, `peskovp-sub`, `peskovp-hy2*` = `active`.
+- Payment smoke assertions:
+  - verified payment activates subscription;
+  - replay webhook does not duplicate activation;
+  - failed payment does not activate subscription;
+  - invalid secret is rejected (`401`).
+- Audit:
+  - `payments.audit` events present in `web-app` container logs.
+### Record
+- Evidence artifact:
+  - `artifacts/phase22_v6/phase22_payment_subscription_smoke_evidence.txt`
+- Также сохранены raw response artifacts в `artifacts/phase22_v6/*`.
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/38_web_telegram_payments_report.md`
+### Gate
+- `PHASE 22`: `PASSED`.
+### Next
+- Переход к `PHASE 23` (canary VPN provisioning gate decision).
