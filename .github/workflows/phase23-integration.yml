@@ -108,7 +108,8 @@ jobs:
         run: docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env up -d --build --no-deps web-app
 
       - name: Run PHASE 23 payment/subscription smoke
-        run: "${{ steps.setup-python.outputs['python-path'] }}" tests/integration/phase23_payment_subscription_smoke.py --base-url http://127.0.0.1:3100 --webhook-secret ci-phase23-telegram-secret --artifacts-dir artifacts/phase23_ci
+        run: |
+          "${{ steps.setup-python.outputs['python-path'] }}" tests/integration/phase23_payment_subscription_smoke.py --base-url http://127.0.0.1:3100 --webhook-secret ci-phase23-telegram-secret --artifacts-dir artifacts/phase23_ci
 
       - name: Capture web-app audit logs
         if: always()
