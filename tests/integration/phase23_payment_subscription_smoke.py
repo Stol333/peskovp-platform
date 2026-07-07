@@ -525,5 +525,8 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as error:
+        error_text = str(error).replace("\n", " ").replace("\r", " ").strip()
+        if error_text:
+            print(f"::error title=PHASE23_CI_SMOKE_FAIL::{error_text}")
         print(f"[error] PHASE23_CI_SMOKE_FAIL: {error}", file=sys.stderr)
         raise
