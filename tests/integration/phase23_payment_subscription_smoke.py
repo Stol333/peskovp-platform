@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
         "--wait-interval-seconds",
         type=int,
         default=4,
-        help="Polling interval for health/ready checks",
+        help="Polling interval for health checks",
     )
     return parser.parse_args()
 
@@ -93,7 +93,12 @@ def http_json(
             headers={k.lower(): v for k, v in error.headers.items()},
         )
     except URLError as error:
-        raise RuntimeError(f"HTTP request failed for {method.upper()} {url}: {error}") from error
+        return HttpResult(
+            status=0,
+            body_text=f"URLError: {error}",
+            body_json=None,
+            headers={},
+        )
 
 
 def _parse_json(raw: str) -> Any | None:
