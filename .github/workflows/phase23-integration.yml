@@ -40,9 +40,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Verify Python runtime
+        run: |
+          echo "python_path=${{ steps.setup-python.outputs.python-path }}"
+          "${{ steps.setup-python.outputs.python-path }}" --version
       - name: Prepare PHASE 23 CI env file
         run: |
           python - <<'PY'
@@ -103,7 +108,7 @@ jobs:
         run: docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env up -d --build --no-deps web-app
 
       - name: Run PHASE 23 payment/subscription smoke
-        run: python3 tests/integration/phase23_payment_subscription_smoke.py --base-url http://127.0.0.1:3100 --webhook-secret ci-phase23-telegram-secret --artifacts-dir artifacts/phase23_ci
+        run: "${{ steps.setup-python.outputs.python-path }}" tests/integration/phase23_payment_subscription_smoke.py --base-url http://127.0.0.1:3100 --webhook-secret ci-phase23-telegram-secret --artifacts-dir artifacts/phase23_ci
 
       - name: Capture web-app audit logs
         if: always()
