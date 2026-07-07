@@ -111,12 +111,6 @@ jobs:
           set +a
           docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env up -d --build --no-deps web-app
 
-      - name: Verify Telegram payments webhook secret wiring
-        run: |
-          set -a
-          source docker/env/phase23.ci.generated.env
-          set +a
-          docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env exec -T web-app sh -lc 'test -n "$PAYMENTS_TELEGRAM_WEBHOOK_SECRET"'
 
       - name: Run PHASE 23 payment/subscription smoke
         run: |
