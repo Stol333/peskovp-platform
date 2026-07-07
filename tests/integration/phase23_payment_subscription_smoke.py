@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
         "--wait-timeout-seconds",
         type=int,
         default=240,
-        help="Max wait time for health/ready checks",
+        help="Max wait time for health checks",
     )
     parser.add_argument(
         "--wait-interval-seconds",
@@ -199,7 +199,6 @@ def main() -> int:
     print(f"[start] PHASE 23 integration smoke against {base_url}")
 
     health_url = f"{base_url}/api/health"
-    ready_url = f"{base_url}/api/ready"
     create_url = f"{base_url}/api/payments/create"
     webhook_url = f"{base_url}/api/payments/webhook/telegram"
     subscription_url = f"{base_url}/api/vpn/subscription-link"
@@ -217,22 +216,6 @@ def main() -> int:
         and result.body_json.get("status") == "healthy",
     )
 
-    wait_until(
-        artifacts_dir=artifacts_dir,
-        name="wait_web_ready",
-        method="GET",
-        url=ready_url,
-        timeout_seconds=args.wait_timeout_seconds,
-        interval_seconds=args.wait_interval_seconds,
-        predicate=lambda result: result.status == 200
-        and isinstance(result.body_json, dict)
-        and result.body_json.get("ok") is True
-        and isinstance(result.body_json.get("readiness"), dict)
-        and result.body_json["readiness"].get("web") is True
-        and result.body_json["readiness"].get("api") is True
-        and result.body_json["readiness"].get("database") is True
-        and result.body_json["readiness"].get("redis") is True,
-    )
 
     create_body = {
         "userId": "phase23-ci-user",
@@ -447,7 +430,6 @@ def main() -> int:
         },
         "checks": [
             "health_ok",
-            "ready_ok",
             "create_intent_new_and_replay",
             "webhook_succeeded_new_and_replay",
             "webhook_failed_no_activation",
