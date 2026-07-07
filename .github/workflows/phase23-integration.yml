@@ -109,7 +109,7 @@ jobs:
           set -a
           source docker/env/phase23.ci.generated.env
           set +a
-          docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env up -d --build --no-deps web-app
+          APP_ENV=ci PAYMENTS_TELEGRAM_WEBHOOK_SECRET=ci-phase23-telegram-secret docker compose -f docker/docker-compose.prod.yml --env-file docker/env/phase23.ci.generated.env up -d --build --no-deps web-app
 
 
       - name: Run PHASE 23 payment/subscription smoke
