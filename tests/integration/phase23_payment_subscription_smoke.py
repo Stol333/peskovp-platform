@@ -92,10 +92,10 @@ def http_json(
             body_json=parsed,
             headers={k.lower(): v for k, v in error.headers.items()},
         )
-    except URLError as error:
+    except (URLError, ConnectionResetError, OSError) as error:
         return HttpResult(
             status=0,
-            body_text=f"URLError: {error}",
+            body_text=f"NetworkError: {error}",
             body_json=None,
             headers={},
         )
