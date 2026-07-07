@@ -92,7 +92,7 @@ function parseTelegramPayload(payload: Record<string, unknown>): ParsedTelegramW
 }
 
 export async function POST(request: Request) {
-  const webhookSecret = process.env.PAYMENTS_TELEGRAM_WEBHOOK_SECRET?.trim();
+  const webhookSecret = process.env["PAYMENTS_TELEGRAM_WEBHOOK_SECRET"]?.trim();
   if (!webhookSecret) {
     return serviceUnavailable("Telegram payments webhook is not configured");
   }
