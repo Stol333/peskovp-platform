@@ -250,6 +250,10 @@ def main() -> int:
     artifacts_dir = Path(args.artifacts_dir)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     run_suffix = str(time.time_ns())
+    (artifacts_dir / "smoke_started.txt").write_text(
+        f"started_at_utc={datetime.now(timezone.utc).isoformat()} run_suffix={run_suffix}\n",
+        encoding="utf-8",
+    )
 
     print(f"[start] PHASE 23 integration smoke against {base_url}")
     print(f"[context] run_suffix={run_suffix}")
