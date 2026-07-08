@@ -330,3 +330,34 @@
   - `reports/38_final_v6_report.md`.
 - Production mass switch и port reclaim намеренно не выполнялись до live canary telemetry (соответствие safety-gates).
 
+## V6 PHASE 24 (execution, completed)
+- Выполнен controlled rollout step без отключения legacy:
+  - `VPN_V2_CANARY_PERCENT: 1 -> 2`.
+- Перед apply создан fresh backup:
+  - `/root/backups/peskovp-phase24-rollout-20260708-123302`.
+- Перезапущены только `api` и `web-app`; safety flags сохранены:
+  - `VPN_WRITE_ENABLED=false`,
+  - `VPN_PROVISIONING_DRY_RUN=true`.
+- Post-apply verify:
+  - `apps/api /health` показывает `canary_percent=2`;
+  - `web /api/health` и `web /api/ready` зелёные;
+  - `web /api/vpn/health`: `legacy=healthy`, `v2Canary=ready_for_admin_test`;
+  - route regression отсутствует (`app/admin/api=200`, `panel/sub=404`, `www=403`).
+- Monitoring snapshot:
+  - API error lines (20m): `0`;
+  - Web error lines (20m): `0`;
+  - Nginx error entries (`-p err`): `no entries`;
+  - synthetic cohort (`100` users): `legacy=98`, `v2_canary=2`.
+- Support burden snapshot:
+  - open issues: `0`;
+  - open PRs: `0`.
+- Итоговое решение:
+  - `PHASE24_DECISION=LIMITED_CANARY`;
+  - `PHASE 24 = PASSED`.
+- Rollout update (next controlled step):
+  - `VPN_V2_CANARY_PERCENT: 2 -> 5`;
+  - fresh backup: `/root/backups/peskovp-phase24-rollout-step2to5-20260708-131157`;
+  - `api/web` health и route-regression checks — стабильны;
+  - synthetic cohort (`200`): `legacy=189`, `v2_canary=11`;
+  - обновлённый статус: `PHASE24_DECISION=LIMITED_CANARY_5` (legacy не отключался).
+
