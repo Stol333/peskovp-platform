@@ -20,6 +20,9 @@ export function badRequest(message: string) {
 export function unauthorized(message = "Unauthorized") {
   return json({ ok: false, error: message }, 401);
 }
+export function forbidden(message = "Forbidden") {
+  return json({ ok: false, error: message }, 403);
+}
 
 export function conflict(message: string) {
   return json({ ok: false, error: message }, 409);

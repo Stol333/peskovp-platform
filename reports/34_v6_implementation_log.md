@@ -1987,3 +1987,76 @@
 - `PHASE 27`: `IN_PROGRESS`.
 ### Next
 - Выполнить `PHASE 27 — FINAL SECURITY REVIEW` по чек-листу execution plan (SSH/UFW/nginx/docker/DB/Redis/env/payment/telegram/AI/VPN/RBAC/audit logs).
+## PHASE 27 — FINAL SECURITY REVIEW (CHECKPOINT #1)
+### Read
+- Повторно прочитан раздел `PHASE 27` в `PESKOVP_WARP_V6_EXECUTION_PLAN.md` (12 обязательных security-контролей + report target в `reports/39_final_v6_execution_report.md`).
+- Выполнен baseline review текущих security-реализаций по платежам, Telegram initData, AI guardrails/audit и compose exposure.
+### Plan
+- Закрыть первый явный code-level gap в рамках PHASE 27 (admin RBAC на открытом admin endpoint).
+- Обновить `reports/39_final_v6_execution_report.md` как рабочий `Security Review` реестр с явными `PASSED/BLOCKED` статусами по всем 12 пунктам.
+- Зафиксировать verify-пакет (typecheck + consistency + secret-scan + compose config).
+### Risk check
+- До изменений присутствовал критичный риск: `/api/admin/metrics` принимал запросы без auth/role-check.
+- После фикса остаются инфраструктурные риски, требующие fresh server-side evidence: `SSH`, `UFW/fail2ban`, `nginx headers/rate limits`, `VPN log hygiene`.
+### Backup / rollback check
+- Изменения ограничены кодом/конфигами репозитория; destructive server-side действий не выполнялось.
+- Rollback path стандартный: `git revert`/откат локальных правок по затронутым файлам.
+### Execute
+- Закрыт admin RBAC gap:
+  - `apps/web/src/lib/api-response.ts` (добавлен `forbidden()`),
+  - `apps/web/src/lib/admin-auth.ts` (новый helper c token + role gating),
+  - `apps/web/app/api/admin/metrics/route.ts` (внедрён `requireAdminApiAccess(request)`).
+- Расширены production env bindings для admin token:
+  - `docker/docker-compose.prod.yml` (`ADMIN_API_AUTH_TOKEN`),
+  - `docker/env/prod.env.example` (`ADMIN_API_AUTH_TOKEN=REPLACE_IN_SECRET_MANAGER`).
+- Заполнен `Security Review` checkpoint:
+  - `reports/39_final_v6_execution_report.md` переведён в `IN_PROGRESS_PHASE_27_SECURITY_REVIEW` и заполнен baseline-статусами по 12 контролям.
+### Verify
+- `pnpm --dir C:/Users/dgafa --filter @peskovp/web typecheck` -> `PASS`.
+- `python C:/Users/dgafa/infra/scripts/phase26_validate_docs_report_consistency.py` -> `OK`.
+- `python C:/Users/dgafa/infra/scripts/phase26_secret_scan.py` -> `OK`.
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example config --quiet` -> `PASS`.
+### Record
+- Обновлены:
+  - `apps/web/src/lib/api-response.ts`
+  - `apps/web/src/lib/admin-auth.ts`
+  - `apps/web/app/api/admin/metrics/route.ts`
+  - `docker/docker-compose.prod.yml`
+  - `docker/env/prod.env.example`
+  - `reports/39_final_v6_execution_report.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 27`: `IN_PROGRESS`.
+- Критичный code-level риск по admin endpoint закрыт; незакрытые пункты имеют статус `BLOCKED` до инфраструктурной верификации.
+### Next
+- Собрать свежие server-side evidence по `SSH/UFW/fail2ban/nginx/VPN logs` и довести PHASE 27 до gate-решения.
+## PHASE 27 — OWNER TRANSITION TO PHASE 28 (20260708-161200)
+### Read
+- Получено прямое указание: зафиксировать текущие изменения коммитом и перейти к следующей фазе плана.
+### Plan
+- Зафиксировать PHASE 27 checkpoint отдельным commit.
+- Формально закрыть PHASE 27 в статусе `BLOCKED` (без имитации полного закрытия инфраструктурных критериев).
+- Перевести активный gate на `PHASE 28`.
+### Risk check
+- Критичный code-level риск закрыт (admin RBAC для `/api/admin/metrics`).
+- Непокрытые инфраструктурные security-пункты остаются открытыми и переносятся как явные blockers в следующий этап.
+### Backup / rollback check
+- Выполнены только репозиторные изменения (код/документы/конфиги), без server-side apply.
+- Rollback path: `git revert` последнего commit при необходимости.
+### Execute
+- Обновлены gate-документы для перехода:
+  - `TODO_PLAN_V6_EXECUTION.md` (`PHASE 27 -> BLOCKED`, `PHASE 28 -> IN_PROGRESS`, `Current gate` обновлён).
+- Подготовлен commit с изменениями PHASE 27 checkpoint и фазового перехода.
+### Verify
+- Проверено, что переход к следующей фазе отражён одновременно в checklist и execution-log.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - commit c изменениями PHASE 27 checkpoint + PHASE 28 transition.
+### Gate
+- `PHASE 27`: `BLOCKED` (infra security evidence pending).
+- `PHASE 28`: `IN_PROGRESS`.
+### Next
+- Выполнять `PHASE 28 — FINAL TEST MATRIX` и параллельно удерживать видимость незакрытых PHASE 27 blockers в финальном отчёте.
