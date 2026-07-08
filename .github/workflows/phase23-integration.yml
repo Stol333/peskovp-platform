@@ -1,4 +1,5 @@
 name: phase23-integration
+# ci-trigger: manual kick via main push (2026-07-08)
 
 on:
   push:

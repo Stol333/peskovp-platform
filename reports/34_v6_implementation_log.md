@@ -1210,3 +1210,347 @@
 - `PHASE 22`: `PASSED`.
 ### Next
 - Переход к `PHASE 23` (canary VPN provisioning gate decision).
+## PHASE 00 — GOVERNANCE SYNC (POST-PHASE 22)
+### Read
+- Выполнена сверка source-of-truth артефактов:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/36_vpn_v2_canary_report.md`
+  - `reports/37_port_reclaim_report.md`
+  - `reports/38_final_v6_report.md`
+### Plan
+- Синхронизировать формулировки governance-статуса без изменения gate-решений по фазам.
+- Закрыть отсутствие обязательного `reports/39_final_v6_execution_report.md` безопасным reserved-артефактом под финальную фазу.
+### Risk check
+- Process risk: название `reports/38_final_v6_report.md` могло интерпретироваться как завершение всей V6-цепочки при активном gate `PHASE_22_PASSED`.
+- Compliance risk: отсутствие обязательного `reports/39_final_v6_execution_report.md` нарушает целевую структуру финальных артефактов.
+### Backup / rollback check
+- Фаза документационная; server-side действий и destructive изменений не выполнялось.
+- Backup/rollback инварианты из `PHASE 04` не затрагивались.
+### Execute
+- Обновлён `TODO_PLAN_V6_EXECUTION.md` блоком governance sync checkpoint.
+- Обновлён `reports/38_final_v6_report.md` статусной пометкой `interim` (до `PHASE 29`).
+- Создан `reports/39_final_v6_execution_report.md` со статусом `RESERVED_FOR_PHASE_29`.
+### Verify
+- Подтверждена согласованность активного gate:
+  - `TODO_PLAN_V6_EXECUTION.md`: `PHASE_22_PASSED`.
+  - `reports/34_v6_implementation_log.md`: `PHASE 22 = PASSED`, `Next -> PHASE 23`.
+- Подтверждено наличие обязательного файла `reports/39_final_v6_execution_report.md` (в статусе reserve-template до финализации).
+### Record
+- Синхронизация зафиксирована в:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/38_final_v6_report.md`
+  - `reports/39_final_v6_execution_report.md`
+### Gate
+- `PHASE 00 (governance re-sync)`: `PASSED`.
+### Next
+- Выполнить `PHASE 23` (canary VPN provisioning gate decision) по действующей gate-модели.
+## PHASE 23 — CANARY VPN PROVISIONING GATE
+### Read
+- Сверены критерии PHASE 23 из execution plan:
+  - legacy vs V2 tests;
+  - RF health;
+  - V2 profile compatibility;
+  - support burden/known issues;
+  - rollback readiness;
+  - формальный decision (`NO_ROLLOUT` / `INTERNAL_ONLY` / `LIMITED_CANARY` / `READY_FOR_GRADUAL_ROLLOUT`).
+- Прочитаны входные артефакты:
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/36_vpn_v2_canary_report.md`
+  - `reports/37_port_reclaim_report.md`
+  - `infra/rollback/VPN_V2_ROLLBACK.md`
+  - `infra/rollback/V6_ROLLBACK.md`
+  - `infra/rollback/V6_PORT_MIGRATION_ROLLBACK.md`
+### Plan
+- Снять свежий read-only health snapshot RF/MAIN.
+- Проверить support burden/known issues через GitHub tracker.
+- Принять и зафиксировать честное rollout decision без изменения массовой подписки.
+### Risk check
+- Главный риск PHASE 23: преждевременный переход к rollout без достаточной telemetry и multi-client compatibility.
+- Operational risk: regression legacy сервисов при любом несанкционированном массовом switch.
+- Process risk: недостоверное decision без свежего runtime precheck.
+### Backup / rollback check
+- Подтверждены backup preconditions:
+  - MAIN: `/root/backups/peskovp-platform-prechange-20260706-121952` (`MAIN_BACKUP_PRESENT=yes`)
+  - RF: `/root/backups/peskovp-platform-prechange-20260706-122147` (`RF_BACKUP_PRESENT=yes`)
+- Подтверждены rollback runbooks:
+  - `infra/rollback/VPN_V2_ROLLBACK.md`
+  - `infra/rollback/V6_ROLLBACK.md`
+  - `infra/rollback/V6_PORT_MIGRATION_ROLLBACK.md`
+### Execute
+- Выполнен свежий RF precheck (read-only):
+  - `xray` -> `active`;
+  - `xray run -test -config /usr/local/etc/xray/config.json` -> `Configuration OK`;
+  - ports/firewall соответствуют canary baseline (`443/2087/2084` + `OpenSSH`).
+- Выполнен свежий MAIN precheck (read-only):
+  - `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`;
+  - port profile соответствует инвариантам (`80/443/8443/9255`, `127.0.0.1:9443`, `127.0.0.1:10443`, `127.0.0.1:18080`).
+- Выполнен support burden snapshot через GitHub MCP:
+  - open issues: `0`;
+  - open PRs: `0`;
+  - closed issues с `bug/incident/regression`: `0`.
+### Verify
+- Legacy vs V2 comparison: база тестов и canary evidence присутствуют, критичных регрессий не зафиксировано.
+- RF health: `PASS` (service/config/firewall/ports в ожидаемом состоянии).
+- Compatibility: `PARTIAL` (подтверждён `NekoRay/nekobox_core`; остальные клиенты без production-evidence).
+- Rollback readiness: `PASS` по наличию backup/runbooks; rollback drill для rollout-фазы ещё не отмечен как completed.
+- Rollout decision:
+  - выбран `INTERNAL_ONLY` как наиболее безопасный и честный статус на текущем evidence.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Gate
+- `PHASE 23`: `PASSED` (принято формальное и обоснованное canary provisioning decision).
+### Next
+- Переход к `PHASE 24` возможен только после расширенной telemetry window и дополнительного подтверждения client compatibility/rollback drill; до этого rollout остаётся в режиме `INTERNAL_ONLY`.
+## PHASE 24 — CONTROLLED PRODUCTION ROLLOUT
+### Read
+- Сверены критерии PHASE 24:
+  - поэтапный rollout без отключения legacy;
+  - фиксация rollout percentage;
+  - мониторинг ошибок/support burden;
+  - rollback readiness.
+- Подтверждены входные артефакты:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/36_vpn_v2_canary_report.md`
+  - `infra/rollback/VPN_V2_ROLLBACK.md`
+### Plan
+- Выполнить минимальный rollout-step без массового переключения:
+  - `VPN_V2_CANARY_PERCENT: 1 -> 2`.
+- Перед apply снять fresh backup.
+- После apply подтвердить отсутствие регрессий по `app/api/admin/panel/sub/legacy` и health score.
+### Risk check
+- Ключевой риск: слишком быстрый rollout без окна наблюдения.
+- Риск регрессии legacy сервисов при конфигурационном изменении на MAIN.
+- Риск необратимости снижен обязательным backup pre-step.
+### Backup / rollback check
+- Создан fresh backup перед изменением:
+  - `/root/backups/peskovp-phase24-rollout-20260708-123302`
+- В backup сохранён pre-change env:
+  - `prod.env.phase22.bak`
+- Rollback path подтверждён:
+  - восстановление env из backup + `docker compose up -d api web-app`.
+### Execute
+- На MAIN обновлён rollout параметр:
+  - `VPN_V2_CANARY_PERCENT` установлен в `2`.
+- Перезапущены `api` и `web-app`.
+- Safety flags сохранены:
+  - `VPN_WRITE_ENABLED=false`
+  - `VPN_PROVISIONING_DRY_RUN=true`
+### Verify
+- Core services:
+  - `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`.
+- API/Web health:
+  - API `/health`: `canary_percent=2`, status `ok`.
+  - Web `/api/health`: `healthy`.
+  - Web `/api/ready`: `api/database/redis=true`.
+  - Web `/api/vpn/health`: `legacy=healthy`, `v2Canary=ready_for_admin_test`.
+- Route regression:
+  - `app/admin/api/api-health` -> `200`;
+  - `panel/sub` -> `404` (ожидаемое hidden-path поведение);
+  - `www` -> `403` (default route preserved).
+- Monitoring snapshot:
+  - API error lines (20m): `0`.
+  - Web error lines (20m): `0`.
+  - Nginx `-p err` entries: `no entries`.
+  - Node scores: `100.0 / 97.05 / 91.84`.
+- Cohort sample:
+  - `100` synthetic users -> `legacy=98`, `v2_canary=2`.
+- Support burden:
+  - GitHub MCP: open issues `0`, open PRs `0`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Gate
+- `PHASE 24`: `PASSED` (ограниченный rollout-step выполнен и стабилен).
+### Next
+- Переход к `PHASE 25` только после накопления telemetry window и подтверждения завершения legacy grace period; массовый rollout по‑прежнему не включён.
+## PHASE 24 — CONTROLLED PRODUCTION ROLLOUT (STEP UPDATE 2% -> 5%)
+### Read
+- Уточнён план следующего rollout-step после `PHASE 24`:
+  - перейти с `2%` на `5%` без отключения legacy.
+- Подтверждены инварианты:
+  - legacy grace period сохранён;
+  - port reclaim остаётся вне scope.
+### Plan
+- Создать fresh backup.
+- Применить `VPN_V2_CANARY_PERCENT: 2 -> 5`.
+- Перезапустить только `api/web-app`.
+- Проверить health/routes/errors/node scores/cohort и support burden.
+### Risk check
+- Риск деградации при увеличении когорты снижен минимальным step-change и immediate monitoring.
+- Риск необратимости закрыт pre-change backup и валидированным rollback path.
+### Backup / rollback check
+- Fresh backup создан:
+  - `/root/backups/peskovp-phase24-rollout-step2to5-20260708-131157`
+- Сохранён pre-change env:
+  - `prod.env.phase22.bak` с `VPN_V2_CANARY_PERCENT=2`
+- Rollback подтверждён:
+  - текущий env `5`, backup `2`.
+### Execute
+- Обновлён env rollout параметр на MAIN:
+  - `VPN_V2_CANARY_PERCENT=5`.
+- Перезапущены только `api` и `web-app`.
+- Safety flags неизменны:
+  - `VPN_WRITE_ENABLED=false`
+  - `VPN_PROVISIONING_DRY_RUN=true`
+### Verify
+- Core services:
+  - `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`.
+- API/Web/VPN health:
+  - API `/health`: `canary_percent=5`, status `ok`;
+  - Web `/api/health`: `healthy`;
+  - Web `/api/ready`: `api/database/redis=true`;
+  - Web `/api/vpn/health`: `legacy=healthy`, `v2Canary=ready_for_admin_test`.
+- Route regression:
+  - `app/admin/api/api-health=200`;
+  - `panel/sub=404` (ожидаемое hidden-path поведение);
+  - `www=403` (default route preserved).
+- Monitoring:
+  - API error lines (20m): `0`;
+  - Web error lines (20m): `0`;
+  - Nginx err entries: `no entries`;
+  - Node scores: `100.0 / 97.05 / 91.84`.
+- Cohort sample:
+  - `200` synthetic users -> `legacy=189`, `v2_canary=11`.
+- Support burden:
+  - GitHub MCP: open issues `0`, open PRs `0`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Gate
+- `PHASE 24`: `PASSED` (шаг `2% -> 5%` стабилен).
+### Next
+- Сохранить режим `LIMITED_CANARY_5` и накопить telemetry window перед оценкой перехода к `25%`; `PHASE 25` запускать только после подтверждения условий reclaim.
+## PHASE 25 — PORT RECLAMATION
+### Read
+- Сверены критерии PHASE 25:
+  - завершение legacy grace period;
+  - отсутствие активных клиентов на legacy endpoint;
+  - fresh backup перед отключением transport;
+  - проверка services/subscriptions/firewall после изменения.
+- Подтверждён текущий rollout state:
+  - `PHASE24_DECISION=LIMITED_CANARY_5`
+  - `VPN_V2_CANARY_PERCENT=5`
+### Plan
+- Выполнить precheck готовности к reclaim без destructive действий.
+- Если preconditions выполнены, делать только минимальный reclaim-step (один exposure).
+- Если preconditions не выполнены, честно фиксировать `BLOCKED`.
+### Risk check
+- Риск преждевременного reclaim: отключение legacy endpoint при активных клиентах приведёт к деградации доступа.
+- Риск невозвратной ошибки снижается только при выполнении backup+rollback перед конкретным reclaim-step.
+### Backup / rollback check
+- Rollback runbooks и предыдущие backup доступны.
+- Fresh backup для конкретного reclaim-step не запускался, так как preconditions не выполнены и destructive apply не начат.
+### Execute
+- Выполнен read-only precheck на MAIN:
+  - `ESTAB_TCP_8443=340`
+  - `ESTAB_TCP_443=26`
+  - `UDP_LISTEN_443_2443_3443=3`
+  - `HY2_LOG_LINES_60M=1637`
+  - critical services `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`
+- Выполнен read-only precheck на RF:
+  - `xray active`, `xray -test=Configuration OK`, firewall baseline сохранён.
+### Verify
+- Preconditions PHASE 25 НЕ выполнены:
+  - legacy grace period не завершён (`LIMITED_CANARY_5`);
+  - на legacy endpoint остаётся активный трафик (`8443/tcp`).
+- Следовательно, reclaim apply запускать небезопасно.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED` (reclaim intentionally not executed).
+### Next
+- Оставаться на PHASE 25 до закрытия условий разблокировки; к PHASE 26 не переходить до честного `PASSED`/обоснованного обновления gate.
+## PHASE 25 — PORT RECLAMATION (MONITORING KICKOFF)
+### Read
+- Подтверждён запрос на запуск monitoring process для blocked phase без destructive reclaim-действий.
+- Повторно сверены критерии PHASE 25 и текущий gate `PHASE_25_BLOCKED`.
+### Plan
+- Добавить reproducible read-only monitoring script для MAIN/RF.
+- Выполнить baseline snapshot и зафиксировать support burden через GitHub MCP.
+- Зафиксировать cadence + unblock thresholds в отчётах.
+### Risk check
+- Риск преждевременного reclaim сохраняется, пока наблюдается активный legacy traffic.
+- Риск ложного `READY` снижен введением наблюдаемого окна (`24h`) и явных числовых порогов.
+### Backup / rollback check
+- Reclaim не выполнялся; fresh backup для reclaim-step по-прежнему отложен до момента фактического apply.
+- Rollback контур остаётся неизменным и доступным.
+### Execute
+- Добавлен скрипт: `infra/scripts/phase25_monitoring_snapshot.ps1`.
+- Инициализирован baseline snapshot:
+  - `artifacts/phase25_monitoring/20260708-113418/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/20260708-113418/main_snapshot_raw.txt`
+  - `artifacts/phase25_monitoring/20260708-113418/rf_snapshot_raw.txt`
+- Добавлен support snapshot через GitHub MCP:
+  - `artifacts/phase25_monitoring/20260708-113418/github_support_snapshot.json`
+  - `artifacts/phase25_monitoring/latest_github_support_snapshot.json`
+### Verify
+- Baseline подтверждает, что unblock preconditions не выполнены:
+  - `ESTAB_TCP_8443=340` (legacy endpoint всё ещё активен);
+  - `HY2_LOG_LINES_60M=1009` (объём legacy-активности остаётся высоким).
+- Инфраструктурная стабильность сохранена:
+  - MAIN services `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`;
+  - RF `xray active` + `xray -test=ok`;
+  - route regression check без изменений (`200/200/200/404/404/403`).
+- Support burden snapshot: `open issues=0`, `open PRs=0`, `recent closed bug/incident=0`.
+### Record
+- Обновлены:
+  - `infra/scripts/phase25_monitoring_snapshot.ps1`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED` (monitoring initiated, reclaim intentionally not executed).
+### Next
+- Выполнять monitoring snapshot каждые 30 минут.
+- Рассматривать переход к reclaim только после 24h стабильного окна и явного подтверждения завершения legacy grace period.
+## PHASE 25 — MONITORING EXECUTION VERIFY (LATEST)
+### Read
+- Запрошена проверка фактического исполнения monitoring script и фиксация следующих unblock-критериев.
+### Plan
+- Выполнить свежий run `phase25_monitoring_snapshot.ps1`.
+- Подтвердить latest summary и derived readiness flags.
+- Обновить критерии следующего unblock-checkpoint в отчётах.
+### Risk check
+- Основной риск остаётся прежним: premature reclaim при высокой legacy-активности.
+### Backup / rollback check
+- Reclaim apply не запускался; rollback контур и требование fresh backup перед reclaim-step сохраняются без изменений.
+### Execute
+- Выполнен monitoring run:
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+- Получен snapshot:
+  - `artifacts/phase25_monitoring/20260708-114002/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+### Verify
+- Script execution: `PASS` (snapshot создан).
+- Latest metrics:
+  - `ESTAB_TCP_8443=340`
+  - `HY2_LOG_LINES_60M=801`
+  - `HY2_ERR_LINES_60M=1`
+- Derived readiness:
+  - `legacy_endpoint_quiet=false`
+  - `legacy_log_volume_low=false`
+  - `phase25_unblock_candidate=false`
+- Инфраструктурная стабильность сохранена:
+  - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED`.
+### Next
+- Следующий unblock-checkpoint: 48 последовательных snapshot (24h при cadence 30m) с выполнением всех числовых и route/service критериев + подтверждённый grace period + fresh backup перед первым reclaim-step.
