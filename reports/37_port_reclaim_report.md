@@ -97,4 +97,35 @@
 ### Current decision
 - `PHASE 25` остаётся `BLOCKED`.
 - Port reclaim apply по-прежнему `not started` до выполнения всех условий.
+## Monitoring verification (latest run)
+### Execution status
+- Monitoring script execution: `PASS`.
+- Команда:
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+- Latest summary:
+  - `artifacts/phase25_monitoring/20260708-114002/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+### Latest observed values
+- `ESTAB_TCP_8443=340`
+- `HY2_LOG_LINES_60M=801`
+- `HY2_ERR_LINES_60M=1`
+- `main_services_ok=true`
+- `rf_health_ok=true`
+- `route_regression_ok=true`
+- `phase25_unblock_candidate=false`
+## Next unblock criteria (strict gate)
+1. Stable telemetry window:
+   - минимум `48` последовательных snapshot (`24h` при cadence `30m`) с одновременным выполнением:
+     - `ESTAB_TCP_8443 <= 5`;
+     - `HY2_LOG_LINES_60M <= 50`;
+     - `HY2_ERR_LINES_60M <= 1`;
+     - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`.
+2. Grace-period confirmation:
+   - отдельное подтверждение завершения legacy grace period.
+3. Pre-reclaim safety pack (перед apply):
+   - fresh backup snapshot;
+   - выбранный reclaim target (один exposure за шаг);
+   - зафиксированный rollback path для этого шага.
+4. Only after criteria pass:
+   - разрешён первый reclaim-step с последующим окном наблюдения.
 

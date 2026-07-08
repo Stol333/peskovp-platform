@@ -1,0 +1,74 @@
+{
+  "snapshot_id": "20260708-114002",
+  "generated_at_utc": "2026-07-08T11:40:02.4104957Z",
+  "targets": {
+    "main_host": "91.202.0.193",
+    "rf_host": "138.16.181.33"
+  },
+  "phase25": {
+    "gate": "PHASE_25_BLOCKED",
+    "grace_period_completed": "manual_confirmation_required"
+  },
+  "metrics": {
+    "main": {
+      "SNAPSHOT_TS_UTC": "2026-07-08T11:40:04Z",
+      "HOSTNAME": "peskovp-vpn-01",
+      "VPN_V2_CANARY_PERCENT": "5",
+      "VPN_WRITE_ENABLED": "false",
+      "VPN_PROVISIONING_DRY_RUN": "true",
+      "ESTAB_TCP_8443": "340",
+      "ESTAB_TCP_443": "0",
+      "UDP_LISTEN_443_2443_3443": "3",
+      "HY2_LOG_LINES_60M": "801",
+      "HY2_ERR_LINES_60M": "1",
+      "SERVICE_NGINX": "active",
+      "SERVICE_X_UI": "active",
+      "SERVICE_PESKOVP_SUB": "active",
+      "SERVICE_PESKOVP_HY2": "active",
+      "SERVICE_PESKOVP_HY2_OBFS": "active",
+      "SERVICE_PESKOVP_HY2_ADVANCED": "active",
+      "ROUTE_APP_CODE": "200",
+      "ROUTE_ADMIN_CODE": "200",
+      "ROUTE_API_HEALTH_CODE": "200",
+      "ROUTE_PANEL_CODE": "404",
+      "ROUTE_SUB_CODE": "404",
+      "ROUTE_WWW_CODE": "403",
+      "API_HEALTH_JSON_B64": "eyJzdGF0dXMiOiJvayIsInNlcnZpY2UiOiJhcHBzL2FwaSIsImVudiI6InByb2R1Y3Rpb24iLCJjYW5hcnlfcGVyY2VudCI6NSwicmZfZ2F0ZXdheV9lbmFibGVkIjp0cnVlLCJ2cG5fd3JpdGVfZW5hYmxlZCI6ZmFsc2UsInZwbl9wcm92aXNpb25pbmdfZHJ5X3J1biI6dHJ1ZX0=",
+      "VPN_HEALTH_JSON_B64": "eyJvayI6dHJ1ZSwidnBuIjp7ImxlZ2FjeSI6ImhlYWx0aHkiLCJ2MkNhbmFyeSI6InJlYWR5X2Zvcl9hZG1pbl90ZXN0In19"
+    },
+    "rf": {
+      "SNAPSHOT_TS_UTC": "2026-07-08T11:40:06Z",
+      "HOSTNAME": "v3179705.hosted-by-vdsina.ru",
+      "XRAY_ACTIVE": "active",
+      "XRAY_CONFIG_TEST": "ok",
+      "LISTEN_TCP_443": "1",
+      "LISTEN_TCP_2087": "1",
+      "LISTEN_TCP_2084": "1",
+      "UFW_STATUS": "active",
+      "UFW_RULE_443": "2",
+      "UFW_RULE_2087": "2",
+      "UFW_RULE_2084": "2",
+      "XRAY_ERR_LINES_60M": "1"
+    }
+  },
+  "derived": {
+    "legacy_endpoint_quiet": false,
+    "legacy_log_volume_low": false,
+    "legacy_error_low": true,
+    "main_services_ok": true,
+    "rf_health_ok": true,
+    "route_regression_ok": true,
+    "unblock_candidate_without_grace_period": false,
+    "phase25_unblock_candidate": false
+  },
+  "monitoring_policy": {
+    "cadence_minutes": 30,
+    "required_stable_window_hours": 24,
+    "target_conditions": [
+      "ESTAB_TCP_8443 <= 5 на протяжении окна наблюдения",
+      "HY2_LOG_LINES_60M <= 50 и HY2_ERR_LINES_60M <= 1 на протяжении окна",
+      "MAIN и RF service/route проверки без регрессии",
+      "Подтверждено завершение legacy grace period"
+    ]
+  }
+}

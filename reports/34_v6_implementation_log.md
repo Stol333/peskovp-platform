@@ -1516,3 +1516,41 @@
 ### Next
 - Выполнять monitoring snapshot каждые 30 минут.
 - Рассматривать переход к reclaim только после 24h стабильного окна и явного подтверждения завершения legacy grace period.
+## PHASE 25 — MONITORING EXECUTION VERIFY (LATEST)
+### Read
+- Запрошена проверка фактического исполнения monitoring script и фиксация следующих unblock-критериев.
+### Plan
+- Выполнить свежий run `phase25_monitoring_snapshot.ps1`.
+- Подтвердить latest summary и derived readiness flags.
+- Обновить критерии следующего unblock-checkpoint в отчётах.
+### Risk check
+- Основной риск остаётся прежним: premature reclaim при высокой legacy-активности.
+### Backup / rollback check
+- Reclaim apply не запускался; rollback контур и требование fresh backup перед reclaim-step сохраняются без изменений.
+### Execute
+- Выполнен monitoring run:
+  - `pwsh -NoProfile -ExecutionPolicy Bypass -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+- Получен snapshot:
+  - `artifacts/phase25_monitoring/20260708-114002/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+### Verify
+- Script execution: `PASS` (snapshot создан).
+- Latest metrics:
+  - `ESTAB_TCP_8443=340`
+  - `HY2_LOG_LINES_60M=801`
+  - `HY2_ERR_LINES_60M=1`
+- Derived readiness:
+  - `legacy_endpoint_quiet=false`
+  - `legacy_log_volume_low=false`
+  - `phase25_unblock_candidate=false`
+- Инфраструктурная стабильность сохранена:
+  - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED`.
+### Next
+- Следующий unblock-checkpoint: 48 последовательных snapshot (24h при cadence 30m) с выполнением всех числовых и route/service критериев + подтверждённый grace period + fresh backup перед первым reclaim-step.

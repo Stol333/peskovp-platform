@@ -445,3 +445,29 @@ PHASE_25_BLOCKED
    - `PHASE 25` остаётся `BLOCKED` (reclaim-step не запускался).
 6. Next:
    - продолжать snapshot-сбор по cadence и пересматривать готовность к reclaim только после выполнения unblock-критериев.
+## PHASE 25 monitoring verification run (latest)
+1. Execution verify:
+   - команда выполнена успешно:
+     - `pwsh -NoProfile -ExecutionPolicy Bypass -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+   - latest snapshot:
+     - `artifacts/phase25_monitoring/20260708-114002/phase25_monitoring_summary.json`
+     - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+2. Latest metrics snapshot:
+   - `ESTAB_TCP_8443=340`
+   - `HY2_LOG_LINES_60M=801`
+   - `HY2_ERR_LINES_60M=1`
+   - route/service checks: `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`
+3. Readiness interpretation:
+   - `legacy_endpoint_quiet=false`
+   - `legacy_log_volume_low=false`
+   - `phase25_unblock_candidate=false`
+4. Next unblock criteria (operational checkpoint):
+   - `48` последовательных snapshot (24h при cadence 30m) должны одновременно подтверждать:
+     - `ESTAB_TCP_8443 <= 5`
+     - `HY2_LOG_LINES_60M <= 50`
+     - `HY2_ERR_LINES_60M <= 1`
+     - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`
+   - отдельное подтверждение завершения legacy grace period;
+   - перед первым reclaim-step: fresh backup + зафиксированный rollback command path.
+5. Gate:
+   - `PHASE 25` остаётся `BLOCKED`.
