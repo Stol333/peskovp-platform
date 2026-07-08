@@ -1473,3 +1473,46 @@
 - `PHASE 25`: `BLOCKED` (reclaim intentionally not executed).
 ### Next
 - Оставаться на PHASE 25 до закрытия условий разблокировки; к PHASE 26 не переходить до честного `PASSED`/обоснованного обновления gate.
+## PHASE 25 — PORT RECLAMATION (MONITORING KICKOFF)
+### Read
+- Подтверждён запрос на запуск monitoring process для blocked phase без destructive reclaim-действий.
+- Повторно сверены критерии PHASE 25 и текущий gate `PHASE_25_BLOCKED`.
+### Plan
+- Добавить reproducible read-only monitoring script для MAIN/RF.
+- Выполнить baseline snapshot и зафиксировать support burden через GitHub MCP.
+- Зафиксировать cadence + unblock thresholds в отчётах.
+### Risk check
+- Риск преждевременного reclaim сохраняется, пока наблюдается активный legacy traffic.
+- Риск ложного `READY` снижен введением наблюдаемого окна (`24h`) и явных числовых порогов.
+### Backup / rollback check
+- Reclaim не выполнялся; fresh backup для reclaim-step по-прежнему отложен до момента фактического apply.
+- Rollback контур остаётся неизменным и доступным.
+### Execute
+- Добавлен скрипт: `infra/scripts/phase25_monitoring_snapshot.ps1`.
+- Инициализирован baseline snapshot:
+  - `artifacts/phase25_monitoring/20260708-113418/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/20260708-113418/main_snapshot_raw.txt`
+  - `artifacts/phase25_monitoring/20260708-113418/rf_snapshot_raw.txt`
+- Добавлен support snapshot через GitHub MCP:
+  - `artifacts/phase25_monitoring/20260708-113418/github_support_snapshot.json`
+  - `artifacts/phase25_monitoring/latest_github_support_snapshot.json`
+### Verify
+- Baseline подтверждает, что unblock preconditions не выполнены:
+  - `ESTAB_TCP_8443=340` (legacy endpoint всё ещё активен);
+  - `HY2_LOG_LINES_60M=1009` (объём legacy-активности остаётся высоким).
+- Инфраструктурная стабильность сохранена:
+  - MAIN services `nginx/x-ui/peskovp-sub/peskovp-hy2*` -> `active`;
+  - RF `xray active` + `xray -test=ok`;
+  - route regression check без изменений (`200/200/200/404/404/403`).
+- Support burden snapshot: `open issues=0`, `open PRs=0`, `recent closed bug/incident=0`.
+### Record
+- Обновлены:
+  - `infra/scripts/phase25_monitoring_snapshot.ps1`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED` (monitoring initiated, reclaim intentionally not executed).
+### Next
+- Выполнять monitoring snapshot каждые 30 минут.
+- Рассматривать переход к reclaim только после 24h стабильного окна и явного подтверждения завершения legacy grace period.

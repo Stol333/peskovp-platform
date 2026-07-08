@@ -418,3 +418,30 @@ PHASE_25_BLOCKED
    - выполнение шага отключения legacy transport на этом этапе небезопасно.
 5. Gate:
    - `PHASE 25 = BLOCKED` (destructive reclaim не запускался).
+## PHASE 25 monitoring kickoff (blocked phase)
+1. Monitoring process initialized:
+   - добавлен read-only скрипт: `infra/scripts/phase25_monitoring_snapshot.ps1`;
+   - скрипт собирает MAIN/RF snapshot, route/service checks и derived readiness flags;
+   - артефакты сохраняются в `artifacts/phase25_monitoring`.
+2. Baseline snapshot:
+   - snapshot dir: `artifacts/phase25_monitoring/20260708-113418`;
+   - `ESTAB_TCP_8443=340`;
+   - `HY2_LOG_LINES_60M=1009`;
+   - `HY2_ERR_LINES_60M=1`;
+   - route regression baseline: `app=200`, `admin=200`, `api/health=200`, `panel=404`, `sub=404`, `www=403`;
+   - RF baseline: `XRAY_ACTIVE=active`, `XRAY_CONFIG_TEST=ok`.
+3. Support burden snapshot (GitHub MCP):
+   - `artifacts/phase25_monitoring/20260708-113418/github_support_snapshot.json`;
+   - `open_issues_total=0`, `open_pull_requests_total=0`, `recent_closed_bug_incident_total=0`.
+4. Monitoring policy (до разблокировки):
+   - cadence: каждые `30` минут;
+   - stable window: не менее `24` часов;
+   - target conditions:
+     - `ESTAB_TCP_8443 <= 5` на всём окне наблюдения;
+     - `HY2_LOG_LINES_60M <= 50` и `HY2_ERR_LINES_60M <= 1`;
+     - без регрессий по `app/admin/api/panel/sub/www`;
+     - явное подтверждение завершения legacy grace period.
+5. Gate:
+   - `PHASE 25` остаётся `BLOCKED` (reclaim-step не запускался).
+6. Next:
+   - продолжать snapshot-сбор по cadence и пересматривать готовность к reclaim только после выполнения unblock-критериев.
