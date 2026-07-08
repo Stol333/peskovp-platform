@@ -361,3 +361,26 @@
   - synthetic cohort (`200`): `legacy=189`, `v2_canary=11`;
   - обновлённый статус: `PHASE24_DECISION=LIMITED_CANARY_5` (legacy не отключался).
 
+## Incident resolution — PHASE 25 HY2 log-volume spike (2026-07-08)
+- Incident:
+  - в рамках `PHASE 25` наблюдался высокий `HY2_LOG_LINES_60M` (`>1000`) при `ESTAB_TCP_8443=0`, что блокировало gate-разблокировку.
+- Root cause:
+  - основной log-noise генерировал unit `peskovp-hy2` (паттерн `accepted tcp ... [hy2-canary-udp443 >> direct] email: ...`);
+  - это был шум активного canary HY2 трафика, а не legacy `8443` established-сессий.
+- Remediation:
+  - выполнен backup: `/root/backups/peskovp-phase25-hy2-logfix-20260708-141413`;
+  - изменён `/opt/peskovp-sub/hysteria2-server.json`:
+    - `loglevel: warning -> error`;
+    - `access: none`;
+  - конфиг проверен `xray -test` (`Configuration OK`);
+  - применён controlled restart только `peskovp-hy2`.
+- Validation:
+  - short-window post-fix rate: `journalctl -u peskovp-hy2 --since "-5 min" -o cat | wc -l = 0`;
+  - post-fix snapshot: `artifacts/phase25_monitoring/20260708-142243/phase25_monitoring_summary.json`;
+  - snapshot metrics: `ESTAB_TCP_8443=0`, `HY2_LOG_LINES_60M=1032`, `HY2_ERR_LINES_60M=1`.
+- Rollback:
+  - `cp -a /root/backups/peskovp-phase25-hy2-logfix-20260708-141413/hysteria2-server.json.before-errorlevel.bak /opt/peskovp-sub/hysteria2-server.json`;
+  - `systemctl restart peskovp-hy2`.
+- Current state:
+  - `PHASE 25` остаётся `BLOCKED` до вымывания 60m окна и formal grace-period confirmation.
+

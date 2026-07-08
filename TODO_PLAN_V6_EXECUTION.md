@@ -471,3 +471,138 @@ PHASE_25_BLOCKED
    - перед первым reclaim-step: fresh backup + зафиксированный rollback command path.
 5. Gate:
    - `PHASE 25` остаётся `BLOCKED`.
+## PHASE 25 resumed gate-assessment (20260708-124823)
+1. Execution verify:
+   - команда выполнена успешно:
+     - `pwsh -NoLogo -NoProfile -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+   - latest snapshot:
+     - `artifacts/phase25_monitoring/20260708-124823/phase25_monitoring_summary.json`
+     - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+2. Latest metrics snapshot:
+   - `ESTAB_TCP_8443=340` (target `<=5`)
+   - `HY2_LOG_LINES_60M=1303` (target `<=50`)
+   - `HY2_ERR_LINES_60M=1` (target `<=1`)
+   - route/service checks: `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`
+3. Trend (latest checkpoints):
+   - `20260708-114002`: `HY2_LOG_LINES_60M=801`
+   - `20260708-120634`: `HY2_LOG_LINES_60M=1160`
+   - `20260708-124823`: `HY2_LOG_LINES_60M=1303`
+   - `ESTAB_TCP_8443` остаётся `340`; pass-streak по unblock window = `0/48`.
+4. Gate interpretation:
+   - `legacy_endpoint_quiet=false`
+   - `legacy_log_volume_low=false`
+   - `legacy_error_low=true`
+   - `phase25_unblock_candidate=false`
+   - `grace_period_completed=manual_confirmation_required`
+5. Gate:
+   - `PHASE 25` остаётся `BLOCKED`.
+6. Next:
+   - продолжать snapshot cadence `30m` до набора стабильного окна;
+   - закрыть formal grace-period confirmation;
+   - перед первым reclaim-step выполнить fresh backup и зафиксировать rollback command path.
+## PHASE 25 diagnostic gate-assessment (20260708-130257)
+1. Execution verify:
+   - команда выполнена успешно:
+     - `pwsh -NoLogo -NoProfile -File C:\Users\dgafa\infra\scripts\phase25_monitoring_snapshot.ps1`
+   - latest snapshot:
+     - `artifacts/phase25_monitoring/20260708-130257/phase25_monitoring_summary.json`
+     - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+2. Latest metrics snapshot:
+   - `ESTAB_TCP_8443=340` (target `<=5`)
+   - `HY2_LOG_LINES_60M=1145` (target `<=50`)
+   - `HY2_ERR_LINES_60M=1` (target `<=1`)
+   - route/service checks: `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`
+3. Read-only diagnostics (safe step to address metrics):
+   - источник legacy `8443` концентрирован:
+     - top source IP: `91.214.243.68` -> `340` established sessions;
+     - process ownership: `xray-linux-amd6` (`pid=46770`) на MAIN.
+   - log-volume источники:
+     - `peskovp-hy2=1127` lines/60m, `peskovp-hy2-obfs=1`, `peskovp-hy2-advanced=1`;
+     - top client IDs (email field): `nwjzww8uru=416`, `d110evc6sccm=350`, `cua8y8nfnm=348`.
+4. Support/grace-period signals (GitHub MCP):
+   - `open_issues_total=0`
+   - `open_pull_requests_total=0`
+   - `recent_closed_bug_incident_total=0` (`closed >= 2026-06-24`)
+5. Gate interpretation:
+   - `legacy_endpoint_quiet=false`
+   - `legacy_log_volume_low=false`
+   - `legacy_error_low=true`
+   - `phase25_unblock_candidate=false`
+   - `grace_period_completed=manual_confirmation_required`
+6. Gate:
+   - `PHASE 25` остаётся `BLOCKED`.
+7. Next safe step:
+   - выполнить formal grace-period confirmation;
+   - подготовить controlled migration-plan для hotspot клиентов (`nwjzww8uru`, `d110evc6sccm`, `cua8y8nfnm`) без отключения legacy transport;
+   - после подтверждений — продолжать cadence `30m` до строгого окна `48`/`48`.
+## PHASE 25 source-mitigation apply and re-evaluation (20260708-131650)
+1. Pre-change safety pack:
+   - fresh backup dir:
+     - `/root/backups/peskovp-phase25-source-mitigation-20260708-131228`
+   - saved artifacts:
+     - `iptables-save.pre.txt`
+     - `ufw-status.pre.txt`
+     - `ss-8443.pre.txt`
+     - `ss-10443.pre.txt`
+     - `xui-inbounds.pre.txt`
+2. Mitigation apply (controlled, reversible):
+   - source-targeted rules added on MAIN:
+     - `PHASE25_SRC_MITIGATION_20260708` (`connlimit --connlimit-above 5` for `91.214.243.68 -> :8443`)
+     - `PHASE25_SRC_HARDBLOCK_20260708` (temporary `REJECT tcp-reset` for `91.214.243.68 -> :8443`)
+   - existing legacy sessions from hotspot source drained via:
+     - `ss -K "( src 91.202.0.193 and sport = :8443 and dst 91.214.243.68 )"`
+3. Rollback path (for mitigation rules):
+   - `iptables -D INPUT -s 91.214.243.68/32 -p tcp -m tcp --dport 8443 -m comment --comment PHASE25_SRC_HARDBLOCK_20260708 -j REJECT --reject-with tcp-reset`
+   - `iptables -D INPUT -s 91.214.243.68/32 -p tcp -m tcp --dport 8443 -m connlimit --connlimit-above 5 --connlimit-mask 32 --connlimit-saddr -m comment --comment PHASE25_SRC_MITIGATION_20260708 -j REJECT --reject-with tcp-reset`
+4. Re-evaluation snapshot:
+   - `artifacts/phase25_monitoring/20260708-131650/phase25_monitoring_summary.json`
+   - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+   - metrics:
+     - `ESTAB_TCP_8443=0` (target `<=5`, condition now met)
+     - `HY2_LOG_LINES_60M=1123` (target `<=50`, still not met)
+     - `HY2_ERR_LINES_60M=1` (target `<=1`, condition met)
+     - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`
+5. Gate interpretation:
+   - `legacy_endpoint_quiet=true` (improved from previous `false`)
+   - `legacy_log_volume_low=false`
+   - `phase25_unblock_candidate=false`
+   - `grace_period_completed=manual_confirmation_required`
+6. Gate:
+   - `PHASE 25` остаётся `BLOCKED`.
+7. Next:
+   - удерживать mitigation в контролируемом окне наблюдения;
+   - продолжать cadence `30m` и отслеживать снижение `HY2_LOG_LINES_60M`;
+   - закрыть formal grace-period confirmation;
+   - переходить к первому reclaim-step только после полного выполнения strict критериев.
+## PHASE 25 hy2 log-volume fix and post-fix re-evaluation (20260708-142243)
+1. Root cause investigation:
+   - `HY2_LOG_LINES_60M` формируется почти полностью unit `peskovp-hy2` (до фикса: `lines_5m=122`, `lines_10m=237`);
+   - доминирующий шаблон:
+     - `from <SRC> accepted tcp:<DST> [hy2-canary-udp443 >> direct] email:<ID>`;
+   - шум шёл от активного canary HY2 трафика (в т.ч. `91.214.243.68`, `128.71.3.41`), а не от legacy `ESTAB_TCP_8443` (он уже был `0`).
+2. Applied fix (with backup):
+   - backup dir:
+     - `/root/backups/peskovp-phase25-hy2-logfix-20260708-141413`
+   - changed file:
+     - `/opt/peskovp-sub/hysteria2-server.json`
+   - log block updated to:
+     - `{\"loglevel\":\"error\",\"access\":\"none\"}`
+   - config validated:
+     - `/usr/local/x-ui/bin/xray-linux-amd64 run -test -config /opt/peskovp-sub/hysteria2-server.json` -> `Configuration OK`
+   - service apply:
+     - `systemctl restart peskovp-hy2` -> `active`
+3. Rollback path (log fix):
+   - `cp -a /root/backups/peskovp-phase25-hy2-logfix-20260708-141413/hysteria2-server.json.before-errorlevel.bak /opt/peskovp-sub/hysteria2-server.json`
+   - `systemctl restart peskovp-hy2`
+4. Post-fix evidence:
+   - live-rate after restart:
+     - `C5=0`, `C2=0` (`journalctl -u peskovp-hy2 --since -5/-2 min -o cat | wc -l`)
+   - post-fix snapshot:
+     - `artifacts/phase25_monitoring/20260708-142243/phase25_monitoring_summary.json`
+     - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+   - metrics:
+     - `ESTAB_TCP_8443=0` (pass)
+     - `HY2_LOG_LINES_60M=1032` (improved from `1123`, still above `<=50`)
+     - `HY2_ERR_LINES_60M=1` (pass)
+5. Gate:
+   - `PHASE 25` остаётся `BLOCKED` (нужно вымывание 60m окна + grace confirmation).
