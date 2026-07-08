@@ -3,13 +3,15 @@
 ## Текущий статус
 - Phase 13 завершена (node-by-node debugging).
 - Phase 14 завершена: документация переведена из scaffold в рабочий набор.
-- Phase 15 завершена: финальный отчёт опубликован, проект передан в review.
+- Phase 15 завершена: финальный отчёт консолидирован и статус проекта закрыт по плановому циклу.
+- V6 execution update: подготовлены controlled VPN re-architecture артефакты (baseline, backup, rollback, architecture, canary evidence).
 ## Структура документации
 - `architecture/overview.md` — актуальная архитектурная карта и границы ответственности компонентов.
 - `api/ai-module.md` — контракт AI module API и эксплуатационные ограничения.
 - `api/vpn-readonly.md` — контракт read-only VPN integration.
 - `runbooks/node-by-node-debugging.md` — runbook выполнения и интерпретации Phase 13 диагностики.
 - `operations/docker-runtime-waiver.md` — operational waiver и диагностика Docker runtime на текущем хосте.
+- `VPN_V2_ARCHITECTURE.md` — целевая архитектура V2 controlled rollout (MAIN/RF, routing policy, canary gates).
 - `CONTRIBUTING.md` — правила и workflow обновления документации.
 ## Трассируемость
 - План и фазовые статусы: `TODO_PLAN.md`.
