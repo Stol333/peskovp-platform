@@ -1749,3 +1749,241 @@
 ### Next
 - Дождаться вымывания 60-минутного окна и подтвердить устойчивый post-fix уровень `HY2_LOG_LINES_60M`.
 - Закрыть formal grace-period confirmation.
+## PHASE 25 — CADENCE CHECKPOINT (20260708-145430)
+### Read
+- Продолжено исполнение плана через очередной checkpoint PHASE 25 после внедрённого HY2 log-fix.
+### Plan
+- Снять новый monitoring snapshot по cadence.
+- Переоценить strict unblock-критерии.
+- Обновить gate-документацию.
+### Risk check
+- Основной риск остаётся прежним: premature reclaim при недостигнутом `HY2_LOG_LINES_60M <= 50`.
+### Backup / rollback check
+- Новых destructive изменений не выполнялось; действуют ранее задокументированные rollback paths.
+### Execute
+- Выполнен snapshot:
+  - `pwsh -NoLogo -NoProfile -File C:\\Users\\dgafa\\infra\\scripts\\phase25_monitoring_snapshot.ps1`
+  - `artifacts/phase25_monitoring/20260708-145430/phase25_monitoring_summary.json`.
+### Verify
+- Updated metrics:
+  - `ESTAB_TCP_8443=0` (pass)
+  - `HY2_LOG_LINES_60M=392` (not pass, threshold `<=50`)
+  - `HY2_ERR_LINES_60M=1` (pass)
+  - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`.
+- Trend:
+  - `HY2_LOG_LINES_60M`: `1123 -> 1032 -> 392` (стабильное снижение после фикса).
+- Derived:
+  - `legacy_endpoint_quiet=true`
+  - `legacy_log_volume_low=false`
+  - `phase25_unblock_candidate=false`
+  - `grace_period_completed=manual_confirmation_required`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED`.
+### Next
+- Продолжать cadence-monitoring до strict threshold `HY2_LOG_LINES_60M <= 50`.
+- После прохождения окна + grace confirmation перейти к pre-reclaim safety pack.
+## PHASE 25 — MANUAL GRACE CONFIRMATION + CADENCE CHECKPOINT (20260708-151343)
+### Read
+- Запрошено проанализировать HY2 trend и выполнить обязательное manual confirmation для grace period.
+- Подтверждено, что до шага метрика `HY2_LOG_LINES_60M` последовательно снижалась, но formal confirmation оставался незакрытым.
+### Plan
+- Формализовать persisted grace confirmation отдельным артефактом.
+- Обновить monitoring script, чтобы он учитывал confirmation при расчёте derived readiness.
+- Снять новый snapshot и переоценить gate status.
+### Risk check
+- Риск некорректной разблокировки снижён: `PHASE 25` сохраняется в `BLOCKED` до подтверждения полного strict-window `48/48`.
+- Риск потери rollback-контроля отсутствует: reclaim apply по‑прежнему не выполнялся.
+### Backup / rollback check
+- Новых destructive изменений не выполнялось; действуют ранее задокументированные rollback paths для source-mitigation и HY2 log-fix.
+### Execute
+- Добавлен script formal confirmation:
+  - `infra/scripts/phase25_confirm_grace_period.ps1`.
+- Сформирован persisted confirmation artifact:
+  - `artifacts/phase25_monitoring/grace_period_confirmation.json`.
+- Обновлён `infra/scripts/phase25_monitoring_snapshot.ps1`:
+  - чтение persisted confirmation;
+  - публикация `phase25.grace_period_completed`/`grace_period_confirmation_loaded`;
+  - расчёт `derived.phase25_unblock_candidate` с учётом confirmation.
+- Выполнены команды:
+  - `pwsh -NoLogo -NoProfile -File C:\\Users\\dgafa\\infra\\scripts\\phase25_confirm_grace_period.ps1 -ConfirmedBy "oz-agent" -ConfirmationNote "Manual grace-period confirmation recorded during PHASE 25 gate execution"`
+  - `pwsh -NoLogo -NoProfile -File C:\\Users\\dgafa\\infra\\scripts\\phase25_monitoring_snapshot.ps1`
+- Получен snapshot:
+  - `artifacts/phase25_monitoring/20260708-151343/phase25_monitoring_summary.json`.
+### Verify
+- HY2 trend (latest checkpoints):
+  - `1303 -> 1145 -> 1123 -> 1032 -> 392 -> 39`.
+- Snapshot `20260708-151343`:
+  - `ESTAB_TCP_8443=0`;
+  - `HY2_LOG_LINES_60M=39`;
+  - `HY2_ERR_LINES_60M=1`;
+  - `main_services_ok=true`, `rf_health_ok=true`, `route_regression_ok=true`;
+  - `grace_period_completed=confirmed`;
+  - `phase25_unblock_candidate=true`.
+### Record
+- Обновлены:
+  - `infra/scripts/phase25_confirm_grace_period.ps1`
+  - `infra/scripts/phase25_monitoring_snapshot.ps1`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+  - `artifacts/phase25_monitoring/grace_period_confirmation.json`
+  - `artifacts/phase25_monitoring/20260708-151343/phase25_monitoring_summary.json`
+  - `artifacts/phase25_monitoring/latest_phase25_monitoring_summary.json`
+### Gate
+- `PHASE 25`: `BLOCKED` (до полного подтверждения strict-window `48/48`, несмотря на прохождение порогов в текущем snapshot).
+### Next
+- Продолжать cadence-monitoring (`30m`) для добора полного стабильного окна.
+- После закрытия окна — создать fresh pre-reclaim safety pack и выполнить только первый controlled reclaim-step.
+## PHASE 25 — GATE REASSESSMENT FOR UNBLOCKING REQUEST (20260708-152845)
+### Read
+- Получен запрос обновить gate-документы и перевести фазу в unblocked при выполнении всех критериев.
+- Выполнена сверка всех доступных snapshot-артефактов `phase25_monitoring_summary.json`.
+### Plan
+- Проверить latest criteria status и посчитать фактический strict pass-streak относительно требования `48/48`.
+- Зафиксировать gate decision в документах.
+### Risk check
+- Риск преждевременного transition в unblocked: запуск reclaim-step без полного стабильного окна нарушает утверждённый safety-gate.
+### Backup / rollback check
+- Destructive apply не выполнялся; rollback paths остаются прежними и валидными.
+### Execute
+- Проанализированы snapshot из окна `20260708-113311 .. 20260708-151343` (`11` summary).
+- Проверен latest snapshot `20260708-151343`:
+  - `ESTAB_TCP_8443=0`
+  - `HY2_LOG_LINES_60M=39`
+  - `HY2_ERR_LINES_60M=1`
+  - `grace_period_completed=confirmed`
+  - `phase25_unblock_candidate=true`
+### Verify
+- Strict-window requirement: `48` последовательных PASS snapshot.
+- Фактический strict pass-streak: `1/48`.
+- Итог: **не все критерии выполнены** (полное окно не набрано).
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+### Gate
+- `PHASE 25`: `BLOCKED` (transition в unblocked не применён).
+### Next
+- Продолжать cadence-monitoring до полного окна `48/48`.
+- После полного окна — fresh pre-reclaim safety pack и один controlled reclaim-step.
+## PHASE 25 — OWNER WAIVER TRANSITION (20260708-153302)
+### Read
+- Получено явное разрешение владельца пропустить strict-window требование `48/48` и продолжить выполнение плана.
+### Plan
+- Зафиксировать owner waiver в gate-документах без имитации выполнения `48/48`.
+- Перевести фазу из `BLOCKED` в `SKIPPED_WITH_REASON` и открыть переход к `PHASE 26`.
+### Risk check
+- Риск сохранён: портовый reclaim выполняется без полного окна telemetry.
+- Митигирующее ограничение: destructive reclaim-step не запускался в рамках waiver-перехода.
+### Backup / rollback check
+- Pre-reclaim backup/apply не выполнялись, т.к. reclaim-step пропущен по owner waiver.
+- Ранее зафиксированные rollback paths сохранены.
+### Execute
+- Обновлены gate-документы:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/37_port_reclaim_report.md`
+- Фаза переведена:
+  - `PHASE 25 -> SKIPPED_WITH_REASON (OWNER WAIVER)`
+  - `Current gate -> PHASE_26_READY_OWNER_WAIVER`
+### Verify
+- Latest factual state на момент transition:
+  - `ESTAB_TCP_8443=0`
+  - `HY2_LOG_LINES_60M=39`
+  - `HY2_ERR_LINES_60M=1`
+  - `grace_period_completed=confirmed`
+- Strict-window по-прежнему не выполнен: `1/48`.
+### Record
+- Owner waiver и transition решение зафиксированы в трёх gate-документах.
+### Gate
+- `PHASE 25`: `SKIPPED_WITH_REASON (OWNER WAIVER)`.
+- `PHASE_26_READY_OWNER_WAIVER`.
+### Next
+- Переход к `PHASE 26` по explicit owner waiver.
+## PHASE 26 — CI/CD (20260708-153702)
+### Read
+- Прочитаны критерии `PHASE 26` из execution plan:
+  - добавить CI workflow;
+  - проверять lint/typecheck/build/tests;
+  - проверять docker compose config;
+  - проверять docs/report consistency;
+  - добавить secret scan;
+  - не выполнять auto-deploy без manual approval.
+### Plan
+- Реализовать единый workflow `phase26-ci` с отдельными jobs под каждую группу проверок.
+- Добавить 2 вспомогательных скрипта: docs/report consistency и secret scan.
+- Провести локальную валидацию новых CI артефактов.
+### Risk check
+- Риск отсутствия внешней CI-верификации в текущей сессии: пока нет фактического GitHub run.
+- Риск auto-deploy снижен: workflow не содержит deploy-шага и зафиксирован как quality/security-only.
+### Backup / rollback check
+- Изменения ограничены репозиторием CI/скриптов; server-side apply не выполнялся.
+- Rollback прост: revert новых workflow/скриптов и gate-обновлений.
+### Execute
+- Добавлен workflow:
+  - `.github/workflows/phase26-ci.yml`
+- Добавлены скрипты:
+  - `infra/scripts/phase26_validate_docs_report_consistency.py`
+  - `infra/scripts/phase26_secret_scan.py`
+- CI jobs реализованы:
+  - JS/TS: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`;
+  - Python: pytest matrix + `compileall`;
+  - Docker: `docker compose ... config`;
+  - docs/report consistency;
+  - secret scan.
+### Verify
+- Локальная проверка новых артефактов:
+  - `python infra/scripts/phase26_validate_docs_report_consistency.py` -> `OK`
+  - `python infra/scripts/phase26_secret_scan.py` -> `OK`
+  - `python -m py_compile infra/scripts/phase26_validate_docs_report_consistency.py infra/scripts/phase26_secret_scan.py` -> `OK`
+- Remote CI run:
+  - В текущей сессии не выполнялся (ожидается первый workflow run на push/PR).
+### Record
+- Обновлены:
+  - `.github/workflows/phase26-ci.yml`
+  - `infra/scripts/phase26_validate_docs_report_consistency.py`
+  - `infra/scripts/phase26_secret_scan.py`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 26`: `PASSED` (по правилу фазы: `CI green` или понятный blocker).
+- `PHASE_26_PASSED_BLOCKER_CI_PENDING` (clear blocker: ожидание первого GitHub Actions run).
+### Next
+- Запустить `phase26-ci` на ближайшем push/PR и зафиксировать run/check URLs.
+- Переход к `PHASE 27`.
+## PHASE 26 — COMPLETION UPDATE + PHASE 27 START (20260708-154716)
+### Read
+- Получено прямое указание: зафиксировать изменения коммитом, обновить gate в complete и перейти к следующей фазе.
+### Plan
+- Закрыть `PHASE 26` как complete в gate-документах.
+- Перевести текущий gate на `PHASE 27` и зафиксировать начало security review.
+### Risk check
+- Риск остаётся прежним: внешний GitHub Actions run ещё не подтверждён в этой сессии.
+- Решение принято по owner directive для непрерывности фазового исполнения.
+### Backup / rollback check
+- Изменения только в репозиторных документах/CI артефактах; серверные изменения не выполнялись.
+### Execute
+- Обновлён `TODO_PLAN_V6_EXECUTION.md`:
+  - `PHASE 27` переведён в `IN_PROGRESS`;
+  - `Current gate` обновлён на `PHASE_27_IN_PROGRESS`;
+  - добавлен checkpoint `PHASE 26 completion update + PHASE 27 transition`.
+- В execution log добавлена текущая запись о фазовом переходе.
+### Verify
+- Gate-синхронизация:
+  - `PHASE 26` остаётся `PASSED`;
+  - текущий активный gate: `PHASE_27_IN_PROGRESS`.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 26`: `PASSED` (complete по owner directive).
+- `PHASE 27`: `IN_PROGRESS`.
+### Next
+- Выполнить `PHASE 27 — FINAL SECURITY REVIEW` по чек-листу execution plan (SSH/UFW/nginx/docker/DB/Redis/env/payment/telegram/AI/VPN/RBAC/audit logs).

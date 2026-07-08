@@ -1,0 +1,136 @@
+name: phase26-ci
+
+# NOTE:
+# - Этот workflow делает только quality/security проверки.
+# - Автодеплой intentionally отсутствует; deployment должен быть только manual с явным approval.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase26-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js-ts-quality:
+    name: JS/TS lint + typecheck + build + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+      - name: Run build
+        run: pnpm build
+
+      - name: Run tests
+        run: pnpm test
+
+  python-quality:
+    name: Python tests + compileall
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/api/requirements.txt -r services/ai-module/requirements.txt pytest
+
+      - name: Run Python test matrix
+        run: |
+          python -m pytest packages/vpn-routing/tests -q
+          python -m pytest apps/api/tests -q
+          python -m pytest integrations/vpn/tests -q
+          python -m pytest services/ai-module/tests -q
+
+      - name: Run compileall
+        run: |
+          python -m compileall packages/vpn-routing/src apps/api/src integrations/vpn/src services/ai-module/src
+
+  docker-compose-config:
+    name: Docker compose config validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate docker compose config
+        run: |
+          mkdir -p artifacts/phase26_ci
+          docker compose -f docker/docker-compose.prod.yml --env-file docker/env/prod.env.example config > artifacts/phase26_ci/docker-compose.prod.config.yml
+
+      - name: Upload compose config artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase26-compose-config
+          path: artifacts/phase26_ci/docker-compose.prod.config.yml
+          if-no-files-found: error
+
+  docs-report-consistency:
+    name: Docs/report consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate docs/report consistency
+        run: python infra/scripts/phase26_validate_docs_report_consistency.py
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run repository secret scan
+        run: python infra/scripts/phase26_secret_scan.py
