@@ -1,17 +1,19 @@
 {
-  "snapshot_id": "20260708-142243",
-  "generated_at_utc": "2026-07-08T14:22:43.6021311Z",
+  "snapshot_id": "20260708-151343",
+  "generated_at_utc": "2026-07-08T15:13:43.4163729Z",
   "targets": {
     "main_host": "91.202.0.193",
     "rf_host": "138.16.181.33"
   },
   "phase25": {
     "gate": "PHASE_25_BLOCKED",
-    "grace_period_completed": "manual_confirmation_required"
+    "grace_period_completed": "confirmed",
+    "grace_period_confirmation_path": "C:\\Users\\dgafa\\artifacts\\phase25_monitoring\\grace_period_confirmation.json",
+    "grace_period_confirmation_loaded": true
   },
   "metrics": {
     "main": {
-      "SNAPSHOT_TS_UTC": "2026-07-08T14:22:44Z",
+      "SNAPSHOT_TS_UTC": "2026-07-08T15:13:45Z",
       "HOSTNAME": "peskovp-vpn-01",
       "VPN_V2_CANARY_PERCENT": "5",
       "VPN_WRITE_ENABLED": "false",
@@ -19,7 +21,7 @@
       "ESTAB_TCP_8443": "0",
       "ESTAB_TCP_443": "0",
       "UDP_LISTEN_443_2443_3443": "3",
-      "HY2_LOG_LINES_60M": "1032",
+      "HY2_LOG_LINES_60M": "39",
       "HY2_ERR_LINES_60M": "1",
       "SERVICE_NGINX": "active",
       "SERVICE_X_UI": "active",
@@ -37,7 +39,7 @@
       "VPN_HEALTH_JSON_B64": "eyJvayI6dHJ1ZSwidnBuIjp7ImxlZ2FjeSI6ImhlYWx0aHkiLCJ2MkNhbmFyeSI6InJlYWR5X2Zvcl9hZG1pbl90ZXN0In19"
     },
     "rf": {
-      "SNAPSHOT_TS_UTC": "2026-07-08T14:22:47Z",
+      "SNAPSHOT_TS_UTC": "2026-07-08T15:13:47Z",
       "HOSTNAME": "v3179705.hosted-by-vdsina.ru",
       "XRAY_ACTIVE": "active",
       "XRAY_CONFIG_TEST": "ok",
@@ -53,13 +55,13 @@
   },
   "derived": {
     "legacy_endpoint_quiet": true,
-    "legacy_log_volume_low": false,
+    "legacy_log_volume_low": true,
     "legacy_error_low": true,
     "main_services_ok": true,
     "rf_health_ok": true,
     "route_regression_ok": true,
-    "unblock_candidate_without_grace_period": false,
-    "phase25_unblock_candidate": false
+    "unblock_candidate_without_grace_period": true,
+    "phase25_unblock_candidate": true
   },
   "monitoring_policy": {
     "cadence_minutes": 30,

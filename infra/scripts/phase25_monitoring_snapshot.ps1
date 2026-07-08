@@ -7,6 +7,7 @@ param(
     [string]$RfKeyPath = "$HOME\.ssh\id_ed25519_138_16_181_33_ru",
     [string]$SshBinary = "",
     [string]$ArtifactsRoot = "",
+    [string]$GraceConfirmationPath = "",
     [int]$SshConnectTimeoutSec = 12
 )
 
@@ -67,6 +68,42 @@ function Get-IntOrDefault {
     return $Default
 }
 
+function Get-GraceConfirmationState {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfirmationPath
+    )
+
+    $result = [ordered]@{
+        status = "manual_confirmation_required"
+        confirmed = $false
+        details = $null
+    }
+
+    if (-not (Test-Path -LiteralPath $ConfirmationPath)) {
+        return $result
+    }
+
+    try {
+        $confirmationRaw = Get-Content -Path $ConfirmationPath -Raw -Encoding utf8
+        $confirmation = $confirmationRaw | ConvertFrom-Json -AsHashtable
+        $status = [string]$confirmation["grace_period_completed"]
+        if ($status -eq "confirmed") {
+            $result.status = "confirmed"
+            $result.confirmed = $true
+        }
+        $result.details = $confirmation
+        return $result
+    } catch {
+        $result.status = "manual_confirmation_required"
+        $result.confirmed = $false
+        $result.details = [ordered]@{
+            parse_error = $_.Exception.Message
+            path = $ConfirmationPath
+        }
+        return $result
+    }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 if ([string]::IsNullOrWhiteSpace($SshBinary)) {
     $sshCommand = Get-Command ssh -ErrorAction SilentlyContinue
@@ -80,6 +117,9 @@ if ([string]::IsNullOrWhiteSpace($SshBinary)) {
 }
 if ([string]::IsNullOrWhiteSpace($ArtifactsRoot)) {
     $ArtifactsRoot = Join-Path $repoRoot "artifacts/phase25_monitoring"
+}
+if ([string]::IsNullOrWhiteSpace($GraceConfirmationPath)) {
+    $GraceConfirmationPath = Join-Path $ArtifactsRoot "grace_period_confirmation.json"
 }
 
 $timestampUtc = [DateTime]::UtcNow
@@ -230,6 +270,8 @@ foreach ($routeKey in $routeExpectations.Keys) {
 }
 
 $unblockWithoutGracePeriod = $legacyEndpointQuiet -and $legacyLogVolumeLow -and $legacyErrorLow -and $mainServicesOk -and $rfHealthOk -and $routeRegressionOk
+$graceConfirmationState = Get-GraceConfirmationState -ConfirmationPath $GraceConfirmationPath
+$phase25UnblockCandidate = $unblockWithoutGracePeriod -and [bool]$graceConfirmationState["confirmed"]
 
 $summary = [ordered]@{
     snapshot_id = $snapshotId
@@ -240,7 +282,9 @@ $summary = [ordered]@{
     }
     phase25 = [ordered]@{
         gate = "PHASE_25_BLOCKED"
-        grace_period_completed = "manual_confirmation_required"
+        grace_period_completed = [string]$graceConfirmationState["status"]
+        grace_period_confirmation_path = $GraceConfirmationPath
+        grace_period_confirmation_loaded = [bool]$graceConfirmationState["confirmed"]
     }
     metrics = [ordered]@{
         main = $mainMap
@@ -254,7 +298,7 @@ $summary = [ordered]@{
         rf_health_ok = $rfHealthOk
         route_regression_ok = $routeRegressionOk
         unblock_candidate_without_grace_period = $unblockWithoutGracePeriod
-        phase25_unblock_candidate = $false
+        phase25_unblock_candidate = $phase25UnblockCandidate
     }
     monitoring_policy = [ordered]@{
         cadence_minutes = 30
