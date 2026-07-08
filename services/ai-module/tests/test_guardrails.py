@@ -1,6 +1,6 @@
 import pytest
 
-from guardrails import GuardrailViolation, validate_user_message
+from src.guardrails import GuardrailViolation, validate_user_message
 
 
 def test_guardrails_blocks_destructive_without_approval() -> None:

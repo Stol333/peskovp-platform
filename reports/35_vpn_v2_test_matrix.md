@@ -164,4 +164,43 @@
 
 ### Final conclusion
 `PHASE 17` переведён в `PASSED`: критичные blockers для predeploy verify закрыты, переход к `PHASE 18` разрешён.
+## PHASE 18 — Local deploy snapshot
+### Commands
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example up -d postgres redis`
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example up -d --build api web-app`
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example ps`
+- health checks:
+  - `http://127.0.0.1:3100/api/health`
+  - `http://127.0.0.1:3100/api/ready`
+  - `http://127.0.0.1:18080/health`
+  - `http://127.0.0.1:8787/health`
+### Results
+- Containers: `web-app/api/ai-module/postgres/redis` -> `healthy`.
+- Publish policy: только loopback binds (`3100/18080/8787`), public `80/443` не заняты контейнерами.
+- DB/cache exposure: `postgres` и `redis` без host publish (`5432/tcp`, `6379/tcp` internal only).
+- Initial blocker устранён: `api` startup import error (`ModuleNotFoundError: vpn_v2_api`) исправлен правкой `apps/api/src/main.py`.
+- Remaining blocker: `/api/ready` возвращает `database:false`, `redis:false`.
+### Gate
+- `PHASE 18`: `BLOCKED` до зелёного readiness-сигнала зависимостей.
+## PHASE 18 — Closure re-run (integration green)
+### Commands
+- `docker compose -f C:/Users/dgafa/docker/docker-compose.prod.yml --env-file C:/Users/dgafa/docker/env/prod.env.example up -d --build web-app`
+- readiness/health checks:
+  - `http://127.0.0.1:3100/api/health`
+  - `http://127.0.0.1:3100/api/ready`
+  - `http://127.0.0.1:18080/health`
+  - `http://127.0.0.1:8787/health`
+- `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"`
+### Results
+- `web / api / ai-module / postgres / redis` -> `healthy`.
+- `web /api/ready` -> `200` с readiness:
+  - `api=true`
+  - `database=true`
+  - `redis=true`
+- Port-safety invariant подтверждён:
+  - только loopback binds `127.0.0.1:3100`, `127.0.0.1:18080`, `127.0.0.1:8787`;
+  - отсутствуют publish `80/443`;
+  - `postgres/redis` internal-only.
+### Gate
+- `PHASE 18`: `PASSED`.
 

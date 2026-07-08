@@ -18,7 +18,12 @@ DESTRUCTIVE_PATTERNS = [
 
 SECRET_PATTERNS = [
     re.compile(r"OPENAI_API_KEY\s*=", re.IGNORECASE),
+    re.compile(r"TELEGRAM_BOT_TOKEN\s*=", re.IGNORECASE),
+    re.compile(r"YOOKASSA_SECRET_KEY\s*=", re.IGNORECASE),
+    re.compile(r"CLOUDPAYMENTS_API_SECRET\s*=", re.IGNORECASE),
+    re.compile(r"Bearer\s+[A-Za-z0-9._\-]{16,}", re.IGNORECASE),
     re.compile(r"sk-[A-Za-z0-9_\-]{20,}", re.IGNORECASE),
+    re.compile(r"-----BEGIN [A-Z ]+PRIVATE KEY-----", re.IGNORECASE),
 ]
 
 

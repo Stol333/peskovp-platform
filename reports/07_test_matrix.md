@@ -131,8 +131,25 @@
 - Traceability consistency: passed (ссылки на `README.md`, `TODO_PLAN.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md` синхронизированы).
 - Phase status decision: completed (documentation deliverables сформированы и согласованы по структуре).
 ## Phase 15 Checks (completed)
-- Final report refresh: passed (`reports/09_final_report.md` переведён в full-cycle формат после Phase 14).
+- Final report refresh: passed (`reports/09_final_report.md` переведён в full-cycle формат и синхронизирован с финальным статусом фаз `00-15`).
 - Final report consistency: passed (содержимое согласовано с `TODO_PLAN.md`, `README.md`, `reports/05_implementation_log.md`, `reports/07_test_matrix.md`).
-- Publication workflow: passed (PR `#4` открыт, ready-for-review, команда уведомлена).
-- Workspace cleanup: passed (временная документация архивирована, локальные `__pycache__` и `.pytest_cache` удалены).
+- Phase status closure: passed (`TODO_PLAN.md` и `README.md` обновлены до состояния завершённого планового цикла `Phase 00-15`).
+
+## V6 Controlled VPN Re-Architecture Checks
+- Baseline MAIN/RF audits: passed (`reports/31_ru_gateway_audit.md`).
+- Redacted competitor analysis: passed (`reports/30_competitor_pattern_analysis.md`).
+- Backup gate (MAIN/RF): passed (`reports/33_ru_gateway_backup.md`).
+- Rollback runbook readiness: passed (`infra/rollback/VPN_V2_ROLLBACK.md`).
+- Port ownership/migration design: passed (`reports/32_port_ownership_and_migration_plan.md`).
+- V2 architecture docs: passed (`docs/VPN_V2_ARCHITECTURE.md`, `reports/33_vpn_v2_architecture.md`).
+- Unit/regression tests:
+  - command: `python -m pytest C:\\Users\\dgafa\\packages\\vpn-routing\\tests C:\\Users\\dgafa\\apps\\api\\tests C:\\Users\\dgafa\\services\\ai-module\\tests C:\\Users\\dgafa\\integrations\\vpn\\tests`
+  - result: `20 passed`.
+- Compile checks:
+  - command: `python -m compileall C:\\Users\\dgafa\\packages\\vpn-routing\\src C:\\Users\\dgafa\\apps\\api\\src C:\\Users\\dgafa\\services\\ai-module\\src C:\\Users\\dgafa\\integrations\\vpn\\src`
+  - result: passed.
+- Canary distribution simulation (5%): passed (`4.50%` фактическое распределение на synthetic cohort).
+- API preview smoke-check: passed (policy/canary/profile flow корректный).
+- Mass subscription switch: not executed by design (safety gate).
+- Legacy port reclaim: deferred by design до live canary telemetry.
 

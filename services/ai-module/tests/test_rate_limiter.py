@@ -1,4 +1,4 @@
-from rate_limiter import InMemoryRateLimiter
+from src.rate_limiter import InMemoryRateLimiter
 
 
 def test_rate_limiter_blocks_after_limit() -> None:
