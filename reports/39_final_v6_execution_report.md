@@ -1,21 +1,21 @@
 # 39 Final V6 Execution Report
 ## Статус документа
-- State: `PHASE_27_BLOCKED_PHASE_28_BLOCKED`
-- Текущий активный gate: `PHASE_28_BLOCKED_VPN_E2E_GAPS_RBAC_PATCHED`
+- State: `PHASE_27_PASSED_PHASE_28_PASSED`
+- Текущий активный gate: `PHASE_27_PASSED_READY_FOR_PHASE29`
 - Финальный статус документа будет выставлен только после закрытия `PHASE 29`.
 ## Назначение
 - Обязательный итоговый артефакт V6-цикла `PHASE 00-29`.
 - На этапе `PHASE 27` используется как рабочий реестр `Security Review`.
 ## Security Review (PHASE 27 checkpoint)
 ### 1) SSH hardening
-- Status: `BLOCKED`
-- Evidence: требуется fresh server-side verify (`sshd` policy/конфиг) в рамках текущего checkpoint.
+- Status: `PASSED`
+- Evidence: применён hardening include `/etc/ssh/sshd_config.d/00-phase27-hardening.conf` на MAIN/RF; effective policy после apply: `permitrootlogin=without-password`, `passwordauthentication=no`, `x11forwarding=no`, `allowtcpforwarding=no`.
 ### 2) UFW/fail2ban
-- Status: `BLOCKED`
-- Evidence: historical UFW evidence есть, но `fail2ban`-проверка в PHASE 27 ещё не зафиксирована.
+- Status: `PASSED`
+- Evidence: на RF установлен и включён fail2ban, `systemctl is-active fail2ban=active`, `fail2ban-client status` показывает jail `sshd`; UFW остаётся `active` на MAIN/RF.
 ### 3) Nginx security headers/rate limits
-- Status: `BLOCKED`
-- Evidence: требуется explicit verify host `nginx` config на security headers и rate-limit directives.
+- Status: `PASSED`
+- Evidence: сохранены security headers и добавлен явный `limit_req` apply в active nginx config (`^~ /api/`, `^~ /api/admin/`); burst-check admin API подтвердил срабатывание rate-limit (`401` + `503`).
 ### 4) Docker exposure
 - Status: `PASSED`
 - Evidence: `docker/docker-compose.prod.yml` публикует только loopback-порты для `web/api/ai`, public `80/443` отсутствуют.
@@ -43,10 +43,10 @@
 ### 12) Audit logs
 - Status: `PASSED`
 - Evidence: `services/ai-module/src/audit_logger.py` подключён в AI runtime pipeline (`services/ai-module/src/main.py`).
-## Промежуточное решение PHASE 27
-- Критичный code-level gap закрыт: `/api/admin/metrics` больше не открыт анонимно.
-- `PHASE 27` зафиксирован как `BLOCKED` до закрытия инфраструктурных пунктов (`SSH`, `UFW/fail2ban`, `nginx headers/rate limits`).
-- По owner directive выполнен `PHASE 28`, но его матрица также выявила блокеры.
+## Решение PHASE 27 (после remediation)
+- Критичный code-level gap и три инфраструктурных блокера закрыты.
+- `PHASE 27 = PASSED`.
+- PHASE 28 остаётся в статусе `PASSED`; финальный переход возможен к `PHASE 29`.
 ## PHASE 28 Final Test Matrix (execution)
 ### Legacy regression
 - `nginx/x-ui/peskovp-sub/peskovp-hy2*=active` на MAIN.
@@ -57,7 +57,7 @@
 - `app=200`, `dashboard=200`, `admin UI=200`.
 - `GET /api/ready -> api=true,database=true,redis=true`.
 - `GET /api/auth/session -> authenticated=false`.
-- Critical blocker: `GET /api/admin/metrics -> 200` без auth.
+- `GET /api/admin/metrics -> 401` без auth (RBAC fail-closed).
 ### Telegram/payment
 - Mini App routes: `/telegram-miniapp-v2.html=200`, `/tg=200`.
 - Telegram backend validation: invalid initData -> `400`.
@@ -72,7 +72,8 @@
 - MAIN internal `/v2/nodes` health scoring: `100.0 / 97.05 / 91.84`.
 - Preview policy lanes verified: `direct/proxy/block`, canary routing and legacy fallback.
 - Provisioning dry-run: `dry_run_ok`, `write_performed=false`.
-- Незакрыто в этом checkpoint: fresh runtime client import/connect и rollback drill evidence.
+- Fresh runtime client import/connect: `PASS` (NekoRay/nekobox_core, trace egress через RF).
+- Rollback drill: `PASS` (`canary_percent 5 -> 2 -> 5` с сохранением health/ready).
 ### Security
 - No public DB/Redis: external `5432/6379` closed; MAIN `ss` без `5432/6379`.
 - No hardcoded credentials: repo secret scan `OK`.
@@ -96,9 +97,46 @@
   - успешный ответ содержит `Cache-Control: no-store`.
 - Итог: блокер `open admin route` закрыт.
 ## PHASE 28 gate decision
-- `PHASE 28 = BLOCKED`.
+- `PHASE 28 = PASSED`.
 - Основания:
-  - VPN V2 e2e пункты `fresh import/connect` и `rollback drill` не закрыты в текущем checkpoint.
+  - web/security blocker по admin RBAC закрыт;
+  - VPN V2 e2e подпункты `fresh import/connect` и `rollback drill` закрыты с fresh evidence.
+- Примечание:
+  - блокеры `PHASE 27` закрыты отдельным remediation checkpoint.
+## PHASE 27 blocker analysis refresh (pre-remediation snapshot)
+### Scope
+- Выполнен fresh read-only анализ по блокерам `SSH`, `UFW/fail2ban`, `nginx headers/rate limits`.
+### Findings
+- SSH hardening: `BLOCKED`:
+  - MAIN/RF `sshd -T` показывает `permitrootlogin yes`, `passwordauthentication yes`.
+- UFW/fail2ban: `BLOCKED`:
+  - MAIN: `ufw active`, `fail2ban active`, jail `sshd` работает;
+  - RF: `ufw active`, но `fail2ban inactive`.
+- Nginx hardening: `BLOCKED`:
+  - security headers присутствуют (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`);
+  - найдены `limit_req_zone` директивы, но нет явного `limit_req` применения в location/server blocks.
+### Analysis outcome
+- Это snapshot до remediation; по итогам remediation checkpoint блокеры PHASE 27 закрыты и фаза переведена в `PASSED`.
+## PHASE 27 remediation execution result
+### Applied changes
+- MAIN/RF SSH:
+  - добавлен `/etc/ssh/sshd_config.d/00-phase27-hardening.conf`;
+  - выполнены `sshd -t` и `systemctl reload ssh`.
+- RF fail2ban:
+  - пакет fail2ban установлен;
+  - добавлен `/etc/fail2ban/jail.d/phase27-sshd.local`;
+  - сервис включён и активен, jail `sshd` активен.
+- MAIN nginx:
+  - добавлены зоны `api_limit`, `admin_api_limit`;
+  - добавлен `limit_req` apply для `^~ /api/` и `^~ /api/admin/`;
+  - `nginx -t` и `systemctl reload nginx` выполнены успешно.
+### Verification summary
+- SSH hardening effective policy подтверждена на MAIN/RF (`without-password/no/no/no`).
+- RF fail2ban подтверждён (`active`, jail `sshd` в статусе `running`).
+- Route regression после nginx apply: `app/admin/api/health=200`, `panel/sub=404`, `www=403`.
+- Burst-check `https://api.peskovp.com/api/admin/metrics` дал смесь `401` и `503`, что подтверждает фактическое срабатывание rate-limit.
+### Gate outcome
+- `PHASE 27 = PASSED`.
 ## Предварительная структура финального отчёта
 ### A. Что было сделано
 - `TBD (после закрытия PHASE 29)`

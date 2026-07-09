@@ -2181,3 +2181,164 @@
 - Добрать fresh VPN V2 import/connect evidence.
 - Выполнить rollback drill evidence для V2.
 - Повторно переоценить `PHASE 28` после закрытия VPN e2e-пунктов.
+## PHASE 28 — VPN E2E COMPLETION + MATRIX RE-VERIFY
+### Read
+- Выполнена команда пользователя на закрытие remaining VPN e2e (`fresh import/connect`, `rollback drill`) и повторную верификацию `PHASE 28` matrix.
+- Подтверждён текущий фокус-гейт: `PHASE_28_BLOCKED_VPN_E2E_GAPS_RBAC_PATCHED`.
+### Plan
+- Выполнить fresh runtime import/connect с новым evidence timestamp.
+- Провести controlled rollback drill на MAIN (`canary 5 -> 2 -> 5`) с backup и health/ready verify.
+- Повторно проверить matrix критерии legacy/web/vpn/security и зафиксировать gate-решение.
+### Risk check
+- Основной риск: rollback drill требует write-изменения env + restart `api/web-app`.
+- Риск деградации снижен: pre-drill backup, ограниченный scope (только canary percent), обязательный restore baseline и post-verify.
+### Backup / rollback check
+- Перед rollback drill создан backup:
+  - `/root/backups/peskovp-phase28-vpn-rollback-drill-20260709-144032`
+  - `prod.env.phase22.before`.
+- Rollback path в drill:
+  - apply step `VPN_V2_CANARY_PERCENT=2`,
+  - verify health,
+  - restore env из backup (`VPN_V2_CANARY_PERCENT=5`),
+  - повторный verify.
+### Execute
+- Fresh import/connect (local runtime):
+  - `nekobox_core check -c C:/Users/dgafa/artifacts/phase20_v6/nekobox_client_runtime_test.json` -> `PASS`;
+  - runtime connect probe через SOCKS:
+    - `curl.exe --socks5-hostname 127.0.0.1:2081 --max-time 20 https://www.cloudflare.com/cdn-cgi/trace` -> `EXIT=0`;
+    - trace egress: `ip=138.16.181.33`, `loc=RU`, `tls=TLSv1.3`.
+- Rollback drill (MAIN):
+  - precheck: `VPN_V2_CANARY_PERCENT=5`;
+  - apply: `VPN_V2_CANARY_PERCENT=2`, `docker compose ... up -d api web-app`;
+  - verify apply state: `api health canary_percent=2`, `web /api/vpn/health=ok`, `web /api/ready=ok`;
+  - restore: env from backup -> `VPN_V2_CANARY_PERCENT=5`, `docker compose ... up -d api web-app`;
+  - verify restore state: `api health canary_percent=5`, `web /api/vpn/health=ok`, `web /api/ready=ok`.
+- PHASE 28 matrix re-check:
+  - MAIN/RF runtime checks (`systemctl`, `nginx -t`, `xray -test`, `ufw`, `ss`) -> `PASS`;
+  - public routes/API (`app/admin/panel/sub/www`, `api/health|ready|auth/session|admin/metrics|vpn/health|subscriptions/current`) -> expected statuses;
+  - Telegram/payment security smoke: invalid initData `400`, invalid webhook secrets/signatures `401`;
+  - VPN internal checks: `/v2/nodes` scores `100.0/97.05/91.84`, policy lanes `direct/proxy/block`, provisioning dry-run `dry_run_ok`.
+### Verify
+- Legacy regression: `PASS`.
+- Web/app: `PASS` (`/api/admin/metrics` fail-closed `401` without auth).
+- Telegram/payment: `PASS` (security smoke no regression).
+- VPN V2: `PASS` (fresh import/connect + rollback drill + policy/dry-run checks).
+- Security: `PASS` (`Secret scan: OK`, DB/Redis external ports closed, `SECRET_LOG_HITS_NONE`).
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/39_final_v6_execution_report.md`
+- Добавлены fresh artifacts:
+  - `artifacts/phase28_v6/20260709-142046/phase28_nekobox_runtime_connect_evidence.txt`
+  - `artifacts/phase28_v6/20260709-142046/phase28_vpn_rollback_drill_evidence.txt`
+  - `artifacts/phase28_v6/20260709-142046/cloudflare_trace.txt`
+### Gate
+- `PHASE 28 = PASSED`.
+- Current gate: `PHASE_28_PASSED_PHASE27_BLOCKED_PENDING_PHASE29`.
+### Next
+- Переход к `PHASE 29` (финальный owner summary) с явной фиксацией, что `PHASE 27` infra-security подпункты остаются `BLOCKED`.
+## PHASE 27 — BLOCKER ANALYSIS REFRESH (POST PHASE 28 PASS)
+### Read
+- Выполнен переход по запросу пользователя к актуализации блокировок `PHASE 27` после подтверждённого `PHASE 28 = PASSED`.
+- Повторно сверены критерии инфраструктурного security review для `SSH`, `UFW/fail2ban`, `nginx headers/rate limits`.
+### Plan
+- Снять свежие read-only evidence на MAIN и RF без изменения конфигов.
+- Зафиксировать причины `BLOCKED` и обновить gate в документах.
+### Risk check
+- Главный риск: ложный переход к `PHASE 29` без закрытия инфраструктурных security-gaps.
+- Вторичный риск: частичная hardening-конфигурация может создавать ложное чувство завершённости (headers есть, но rate-limit apply не завершён).
+### Backup / rollback check
+- Фаза полностью read-only: destructive/config write операции не выполнялись, backup не требовался.
+### Execute
+- MAIN:
+  - `systemctl is-active ssh fail2ban` -> `active/active`;
+  - `sshd -T` подтвердил небезопасные параметры (`permitrootlogin yes`, `passwordauthentication yes`, `x11forwarding yes`, `allowtcpforwarding yes`);
+  - `fail2ban-client status sshd` подтвердил активный jail;
+  - `ufw status verbose` -> `active`, default incoming deny;
+  - проверка nginx конфигов: security headers присутствуют, есть `limit_req_zone`, но явное `limit_req` применение не найдено.
+- RF:
+  - `systemctl is-active ssh fail2ban` -> `active/inactive`;
+  - `sshd -T` также показывает `permitrootlogin yes`, `passwordauthentication yes`;
+  - `ufw` остаётся `active`.
+- Runtime header probe (`curl -I`) подтвердил выдачу базовых security headers.
+### Verify
+- SSH hardening: `BLOCKED` (root login/password auth включены на MAIN и RF).
+- UFW/fail2ban: `BLOCKED` (на RF fail2ban неактивен при активном UFW).
+- Nginx hardening: `BLOCKED` (headers подтверждены, но rate-limit не доведён до явного `limit_req` apply).
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/39_final_v6_execution_report.md`
+### Gate
+- `PHASE 27`: `BLOCKED` (fresh evidence refresh completed).
+- Current gate: `PHASE_27_BLOCKED_ANALYSIS_REFRESHED_PHASE28_PASSED`.
+### Next
+- Подготовить remediation sequence по трём блокерам PHASE 27:
+  - SSH policy hardening;
+  - fail2ban enable/tune на RF;
+  - nginx `limit_req` apply и повторная верификация.
+## PHASE 27 — BLOCKER REMEDIATION EXECUTION (SSH/FAIL2BAN/NGINX)
+### Read
+- Выполнен переход к реализации утверждённого remediation-плана PHASE 27.
+- Подтверждён фокус на трёх блокерах: `SSH hardening`, `UFW/fail2ban`, `nginx headers/rate limits`.
+### Plan
+- Сначала снять backup/evidence на MAIN и RF.
+- Затем поэтапно применить hardening: SSH (MAIN/RF), fail2ban (RF), rate-limit apply (MAIN).
+- После apply провести route/service regression и обновить gate-документы.
+### Risk check
+- Критичный риск: потеря SSH-доступа при неправильной конфигурации.
+- Риск регрессии web/API маршрутов после nginx изменения.
+- Риск неконсистентного gate при неполной синхронизации отчётов.
+### Backup / rollback check
+- Созданы backup пакеты:
+  - MAIN: `/root/backups/peskovp-phase27-remediation-main-20260709-170412`
+  - RF: `/root/backups/peskovp-phase27-remediation-rf-20260709-170550`
+- Backup включают SSH/nginx/fail2ban конфиги и pre-change evidence.
+- Rollback path сохранён через restore backup-файлов и reload сервисов.
+### Execute
+- SSH hardening MAIN/RF:
+  - добавлен `/etc/ssh/sshd_config.d/00-phase27-hardening.conf`;
+  - применены параметры `PermitRootLogin prohibit-password`, `PasswordAuthentication no`, `X11Forwarding no`, `AllowTcpForwarding no`;
+  - выполнены `sshd -t` и `systemctl reload ssh` на обоих серверах.
+- RF fail2ban:
+  - установлен пакет `fail2ban`;
+  - добавлен `/etc/fail2ban/jail.d/phase27-sshd.local`;
+  - выполнен `systemctl enable --now fail2ban`.
+- MAIN nginx:
+  - добавлены зоны `api_limit` и `admin_api_limit`;
+  - добавлен явный `limit_req` apply для `^~ /api/` и `^~ /api/admin/`;
+  - выполнены `nginx -t` и `systemctl reload nginx`.
+### Verify
+- SSH policy after apply:
+  - MAIN/RF: `permitrootlogin without-password`, `passwordauthentication no`, `x11forwarding no`, `allowtcpforwarding no`.
+- RF fail2ban:
+  - `systemctl is-active fail2ban -> active`;
+  - `fail2ban-client status` показывает jail `sshd`.
+- MAIN nginx:
+  - `grep` подтверждает `limit_req_zone` + `limit_req` apply;
+  - сервисы `nginx/x-ui/peskovp-sub/peskovp-hy2*` остаются `active`.
+- Route regression:
+  - baseline artifact: `artifacts/phase27_v6/20260709-170648/phase27_public_route_baseline.txt`;
+  - post-apply artifact: `artifacts/phase27_v6/20260709-172310/phase27_public_route_post_nginx_rate_limit.txt`;
+  - статусы сохранены (`app/admin/api/health=200`, `panel/sub=404`, `www=403`).
+- Rate-limit functional check:
+  - `artifacts/phase27_v6/20260709-172310/phase27_admin_rate_limit_burst_check.txt` показывает смесь `401` и `503` на `api/admin/metrics` при burst-запросах.
+### Record
+- Обновлены:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/39_final_v6_execution_report.md`
+- Артефакты:
+  - `/root/backups/peskovp-phase27-remediation-main-20260709-170412`
+  - `/root/backups/peskovp-phase27-remediation-rf-20260709-170550`
+  - `artifacts/phase27_v6/20260709-170648/phase27_public_route_baseline.txt`
+  - `artifacts/phase27_v6/20260709-172310/phase27_public_route_post_nginx_rate_limit.txt`
+  - `artifacts/phase27_v6/20260709-172310/phase27_admin_rate_limit_burst_check.txt`
+### Gate
+- `PHASE 27 = PASSED`.
+- Current gate: `PHASE_27_PASSED_READY_FOR_PHASE29`.
+### Next
+- Переход к `PHASE 29` (финальный owner summary) с включением remediation evidence в финальный отчёт.
