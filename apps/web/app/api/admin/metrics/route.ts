@@ -1,5 +1,8 @@
 import { ok } from "@/src/lib/api-response";
 import { requireAdminApiAccess } from "@/src/lib/admin-auth";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: Request) {
   const access = requireAdminApiAccess(request);
@@ -13,5 +16,5 @@ export async function GET(request: Request) {
       activeSubscriptions: 0,
       canaryPercent: 0
     }
-  });
+  }, 200, { "Cache-Control": "no-store" });
 }

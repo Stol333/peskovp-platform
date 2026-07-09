@@ -9,8 +9,8 @@ function json(payload: JsonPayload, status: number, headers?: HeadersInit) {
   });
 }
 
-export function ok<T extends JsonPayload>(payload: T, status = 200) {
-  return json(payload, status);
+export function ok<T extends JsonPayload>(payload: T, status = 200, headers?: HeadersInit) {
+  return json(payload, status, headers);
 }
 
 export function badRequest(message: string) {

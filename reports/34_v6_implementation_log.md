@@ -2060,3 +2060,124 @@
 - `PHASE 28`: `IN_PROGRESS`.
 ### Next
 - Выполнять `PHASE 28 — FINAL TEST MATRIX` и параллельно удерживать видимость незакрытых PHASE 27 blockers в финальном отчёте.
+## PHASE 28 — FINAL TEST MATRIX (EXECUTION)
+### Read
+- Повторно прочитаны требования `PHASE 28` из execution plan: legacy/web/telegram-payment/vpn/security матрица + обязательные report updates в `reports/35` и `reports/39`.
+- Учтён текущий контекст: `PHASE 27` уже в статусе `BLOCKED`.
+### Plan
+- Выполнить свежие runtime проверки MAIN/RF и публичных маршрутов.
+- Подтвердить payment/vpn/security критерии фактическими командами.
+- Зафиксировать gate-решение PHASE 28 с честной фиксацией blockers.
+### Risk check
+- Выявлен критичный риск: потенциально открытый admin endpoint в runtime.
+- Дополнительный риск неполной e2e-валидации VPN V2 без fresh client import/connect и rollback drill.
+### Backup / rollback check
+- Проверки выполнялись преимущественно read-only.
+- Для payment smoke использованы controlled webhook-вызовы без раскрытия секретов (секреты читались и использовались только server-side).
+- Destructive инфраструктурные изменения не выполнялись.
+### Execute
+- MAIN legacy/runtime:
+  - `systemctl is-active` для `nginx/x-ui/peskovp-sub/peskovp-hy2*`;
+  - `nginx -t`;
+  - `ufw status`;
+  - internal check `http://127.0.0.1:3100/api/admin/metrics`.
+- RF runtime:
+  - `systemctl is-active xray`;
+  - `xray run -test -config /usr/local/etc/xray/config.json`;
+  - `ufw status`;
+  - `ss -tuln` по required ports.
+- Public matrix checks:
+  - `app/admin/api/panel/sub/www` statuses;
+  - `api/health`, `api/ready`, `api/auth/session`, `api/admin/metrics`, `api/vpn/health`, `api/subscriptions/current`;
+  - `telegram/validate-init-data`.
+- Payment matrix checks:
+  - create+idempotency (new/replay);
+  - invalid webhook security checks (`401`);
+  - internal MAIN `telegram_stars` succeeded activation;
+  - renewal path (second succeeded activation);
+  - failed webhook path (`subscriptionActivation=null`).
+- VPN V2 matrix checks:
+  - internal MAIN `/v2/nodes`;
+  - internal preview scenarios (`direct/proxy/block`, canary/legacy lanes);
+  - internal `/v2/provisioning/dry-run` (`write_performed=false`).
+- Security matrix checks:
+  - `phase26_secret_scan.py`;
+  - no public DB/Redis (`ss` + external `Test-NetConnection`);
+  - fresh secret-pattern log audit (`journalctl ... --since '-30 min'`) на MAIN/RF.
+### Verify
+- Legacy regression: `PASS`.
+- Web/app: `BLOCKED` (runtime `GET /api/admin/metrics -> 200` without auth).
+- Telegram/payment: `PASS` (включая activation/renewal/failure paths).
+- VPN V2: `PARTIAL` (core checks pass; нет fresh runtime import/connect + rollback drill evidence).
+- Security: `BLOCKED` (open admin route).
+### Record
+- Обновлены:
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/39_final_v6_execution_report.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 28`: `BLOCKED`.
+- Причины:
+  - критичный runtime gap: `/api/admin/metrics` доступен без RBAC;
+  - незакрытые VPN V2 e2e подпункты (`fresh import/connect`, `rollback drill`).
+- Current gate: `PHASE_28_BLOCKED_RUNTIME_ADMIN_RBAC_AND_VPN_E2E_GAPS`.
+### Next
+- Исправить/дозадеплоить runtime RBAC для admin metrics endpoint и подтвердить `401/403` без auth.
+- Добрать fresh runtime client import/connect evidence + rollback drill.
+- Повторно выполнить PHASE 28 matrix для переоценки gate.
+## PHASE 28 — ADMIN RBAC RUNTIME PATCH (FOLLOW-UP)
+### Read
+- Получен прямой запрос на реализацию runtime RBAC fix для `admin metrics` и верификацию security patch.
+- Подтверждён runtime drift на MAIN: старый route без auth, отсутствующий `admin-auth.ts`, отсутствие `ADMIN_API_AUTH_TOKEN` в runtime env/compose binding.
+### Plan
+- Довести локальный web patch до fail-closed поведения endpoint.
+- Безопасно применить patch на MAIN с backup и без раскрытия секретов.
+- Подтвердить runtime ожидаемыми кодами `401/403/200` и обновить gate-документы.
+### Risk check
+- Критичный риск был активен до apply: административный endpoint доступен без auth.
+- Риск утечки секретов снижен: токен создавался/использовался только server-side и не выводился в лог.
+### Backup / rollback check
+- Перед apply создан backup runtime-артефактов:
+  - `/root/backups/peskovp-phase28-admin-rbac-20260709-115453`
+  - `route.ts.bak`, `api-response.ts.bak`, `prod.env.phase22.bak`, `docker-compose.prod.yml.bak`.
+- Rollback path: restore backup-файлы + `docker compose ... up -d --build web-app`.
+### Execute
+- Локально обновлён web RBAC patch:
+  - `apps/web/app/api/admin/metrics/route.ts` (`requireAdminApiAccess`, `runtime=nodejs`, `force-dynamic`, `revalidate=0`, `Cache-Control: no-store`).
+  - `apps/web/src/lib/api-response.ts` (`ok(..., headers?)`).
+- Локальная валидация:
+  - `pnpm --filter @peskovp/web typecheck` -> `PASS`.
+- MAIN apply:
+  - синхронизированы файлы `route.ts`, `api-response.ts`, `admin-auth.ts`, `docker/docker-compose.prod.yml`;
+  - в `/root/peskovp-platform/docker/env/prod.env.phase22` добавлен `ADMIN_API_AUTH_TOKEN` (значение скрыто);
+  - выполнен rebuild/restart `web-app` через `docker compose ... up -d --build web-app`.
+### Verify
+- Public no-auth: `GET https://api.peskovp.com/api/admin/metrics` -> `401`.
+- Internal no-auth: `GET http://127.0.0.1:3100/api/admin/metrics` -> `401`.
+- Internal bad-role: valid token + `x-admin-role=user` -> `403`.
+- Internal valid-auth: valid token + `x-admin-role=admin` -> `200`.
+- Public valid-auth (from MAIN): valid token + `x-admin-role=admin` -> `200`.
+- Success response header: `Cache-Control: no-store`.
+### Record
+- Обновлены:
+  - `apps/web/app/api/admin/metrics/route.ts`
+  - `apps/web/src/lib/api-response.ts`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/39_final_v6_execution_report.md`
+- На MAIN обновлены runtime-файлы:
+  - `/root/peskovp-platform/apps/web/app/api/admin/metrics/route.ts`
+  - `/root/peskovp-platform/apps/web/src/lib/api-response.ts`
+  - `/root/peskovp-platform/apps/web/src/lib/admin-auth.ts`
+  - `/root/peskovp-platform/docker/docker-compose.prod.yml`
+  - `/root/peskovp-platform/docker/env/prod.env.phase22`
+### Gate
+- Admin RBAC runtime blocker закрыт.
+- `PHASE 28` остаётся `BLOCKED` только по VPN V2 e2e подпунктам (`fresh import/connect`, `rollback drill`).
+- Current gate: `PHASE_28_BLOCKED_VPN_E2E_GAPS_RBAC_PATCHED`.
+### Next
+- Добрать fresh VPN V2 import/connect evidence.
+- Выполнить rollback drill evidence для V2.
+- Повторно переоценить `PHASE 28` после закрытия VPN e2e-пунктов.
