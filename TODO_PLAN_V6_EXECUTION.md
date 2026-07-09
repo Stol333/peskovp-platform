@@ -41,6 +41,10 @@ Read → Plan → Risk check → Backup/Rollback check → Execute → Verify �
 [ ] PHASE 29 — FINAL REPORT AND OWNER SUMMARY
 ## Current gate
 PHASE_28_BLOCKED_VPN_E2E_GAPS_RBAC_PATCHED
+## Task closure checkpoint (post-PR #11)
+- `Task`: PHASE 28 admin RBAC runtime fix + security verification.
+- `Status`: CLOSED (результаты зафиксированы в PR `#11` и связанных отчётах `reports/34`, `reports/35`, `reports/39`).
+- `Remaining blocker`: только VPN V2 e2e (`fresh import/connect`, `rollback drill`).
 ## Governance sync checkpoint (PHASE 00 re-sync)
 - Source-of-truth синхронизирован:
   - `TODO_PLAN_V6_EXECUTION.md`: `PHASE 22 = PASSED`, следующий шаг `PHASE 23`.
