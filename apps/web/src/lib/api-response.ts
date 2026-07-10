@@ -9,8 +9,8 @@ function json(payload: JsonPayload, status: number, headers?: HeadersInit) {
   });
 }
 
-export function ok<T extends JsonPayload>(payload: T, status = 200) {
-  return json(payload, status);
+export function ok<T extends JsonPayload>(payload: T, status = 200, headers?: HeadersInit) {
+  return json(payload, status, headers);
 }
 
 export function badRequest(message: string) {
@@ -19,6 +19,9 @@ export function badRequest(message: string) {
 
 export function unauthorized(message = "Unauthorized") {
   return json({ ok: false, error: message }, 401);
+}
+export function forbidden(message = "Forbidden") {
+  return json({ ok: false, error: message }, 403);
 }
 
 export function conflict(message: string) {

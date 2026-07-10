@@ -203,4 +203,130 @@
   - `postgres/redis` internal-only.
 ### Gate
 - `PHASE 18`: `PASSED`.
+## PHASE 28 — FINAL TEST MATRIX
+### Scope
+Финальная сквозная проверка `legacy/web/telegram-payment/vpn/security` перед `PHASE 29`.
+### Commands
+- MAIN/RF runtime checks:
+  - `ssh ... root@91.202.0.193 "systemctl is-active ..."`
+  - `ssh ... root@91.202.0.193 "nginx -t"`
+  - `ssh ... root@91.202.0.193 "ufw status"`
+  - `ssh ... root@138.16.181.33 "systemctl is-active xray; xray run -test ...; ufw status"`
+- Public route/API checks:
+  - `curl.exe https://app.peskovp.com ...`
+  - `curl.exe https://api.peskovp.com/api/{health,ready,auth/session,admin/metrics,vpn/health,subscriptions/current}`
+  - `curl.exe -X POST https://api.peskovp.com/api/telegram/validate-init-data ...`
+  - `curl.exe -X POST https://api.peskovp.com/api/payments/create ...`
+  - `curl.exe -X POST https://api.peskovp.com/api/payments/webhook/{telegram,yookassa} ...`
+- Internal MAIN payment/V2 checks:
+  - `ssh ... root@91.202.0.193 "curl http://127.0.0.1:3100/api/payments/..."`
+  - `ssh ... root@91.202.0.193 "curl http://127.0.0.1:18081/v2/{nodes,subscription/preview,provisioning/dry-run} ..."`
+- Security checks:
+  - `python C:/Users/dgafa/infra/scripts/phase26_secret_scan.py`
+  - `Test-NetConnection 91.202.0.193 -Port 5432/6379`
+  - `journalctl ... | grep -Ei ...` (MAIN/RF, window `-30 min`)
+### Results
+- Legacy regression:
+  - MAIN units: `nginx/x-ui/peskovp-sub/peskovp-hy2/peskovp-hy2-obfs/peskovp-hy2-advanced=active`.
+  - Sync timer: `peskovp-hy2-sync.timer=active`.
+  - Route baseline: `panel=404`, `sub=404`, `www=403` (hidden/default behavior preserved).
+  - Legacy profile unchanged: `GET /api/subscriptions/current -> profile=legacy`.
+- Web/app:
+  - `app=200`, `dashboard=200`, `admin UI=200`.
+  - `GET /api/ready -> api=true,database=true,redis=true`.
+  - `GET /api/auth/session -> authenticated=false`.
+  - Critical finding: `GET /api/admin/metrics -> 200` без auth (публично и на internal web bind).
+- Telegram/payment:
+  - Mini App endpoints: `/telegram-miniapp-v2.html=200`, `/tg=200`.
+  - Telegram initData invalid payload -> `400 Invalid Telegram initData`.
+  - Payment create/idempotency: `201 new` + `200 replay`.
+  - Webhook security: invalid Telegram/YooKassa secret/signature -> `401`.
+  - Internal MAIN smoke with valid webhook secret (без раскрытия секрета):
+    - `telegram_stars` succeeded webhook #1 -> `subscriptionActivation.activated=true`;
+    - succeeded webhook #2 (renewal path) -> `subscriptionActivation.activated=true`;
+    - failed webhook -> `paymentStatus=failed`, `subscriptionActivation=null`.
+- VPN V2:
+  - RF gateway: `xray=active`, `xray -test=ok`, required ports listening, `ufw active`.
+  - MAIN internal `/v2/nodes`: `main-control=100.0`, `rf-primary-tcp=97.05`, `rf-secondary-grpc=91.84`.
+  - Preview policy checks:
+    - admin + `video.yandex.ru` -> `policy_lane=direct`, `canary_lane=v2_canary`;
+    - opt-in + `example.org` -> `policy_lane=proxy`, `canary_lane=v2_canary`;
+    - regular + `example.org` -> `policy_lane=proxy`, `canary_lane=legacy`;
+    - `protocol=bittorrent` -> `policy_lane=block`.
+  - Provisioning dry-run: `status=dry_run_ok`, `write_performed=false`, `dry_run=true`.
+- Security:
+  - No public DB/Redis: external `91.202.0.193:5432/6379 -> False`; MAIN `ss` без `5432/6379`.
+  - No hardcoded credentials: `Secret scan: OK`.
+  - No secret logs in fresh window: `SECRET_LOG_HITS_NONE` (MAIN/RF).
+  - Firewall expected: `ufw active` (MAIN/RF).
+  - Nginx test: `nginx -t` successful.
+### Gate checks (PHASE 28)
+- Legacy regression: `PASS`.
+- Web/app: `BLOCKED` (open admin route without RBAC in runtime).
+- Telegram/payment: `PASS`.
+- VPN V2: `PARTIAL` (core checks pass; fresh client import/connect + rollback drill не выполнены в этом checkpoint).
+- Security: `BLOCKED` (open admin route).
+### Conclusion
+`PHASE 28` зафиксирован как `BLOCKED`: по итогам исходной матрицы выявлен runtime gap admin RBAC и незакрытые VPN V2 e2e-подпункты; после follow-up patch runtime RBAC gap закрыт, активный blocker остаётся только по VPN V2 e2e (`fresh import/connect`, `rollback drill`).
+## PHASE 28 — Admin RBAC runtime patch re-check
+### Commands
+- Local verify:
+  - `pnpm --filter @peskovp/web typecheck`
+- MAIN apply (backup + sync + deploy):
+  - backup files/env (+ compose backup): `/root/backups/peskovp-phase28-admin-rbac-20260709-115453`
+  - sync files: `apps/web/app/api/admin/metrics/route.ts`, `apps/web/src/lib/api-response.ts`, `apps/web/src/lib/admin-auth.ts`, `docker/docker-compose.prod.yml`
+  - ensure env token: `ADMIN_API_AUTH_TOKEN` added to `/root/peskovp-platform/docker/env/prod.env.phase22` (value hidden)
+  - `docker compose -f /root/peskovp-platform/docker/docker-compose.prod.yml --env-file /root/peskovp-platform/docker/env/prod.env.phase22 up -d --build web-app`
+- Runtime checks:
+  - public no-auth: `curl.exe -k -s -i https://api.peskovp.com/api/admin/metrics`
+  - internal no-auth: `curl --max-time 15 http://127.0.0.1:3100/api/admin/metrics`
+  - internal bad role / valid role: `curl ... -H x-admin-auth-token -H x-admin-role`
+  - public valid role (from MAIN): `curl -k ... https://api.peskovp.com/api/admin/metrics`
+### Results
+- `GET /api/admin/metrics` без auth:
+  - public -> `401`
+  - internal -> `401`
+- С валидным token, но `x-admin-role=user` -> `403`.
+- С валидным token и `x-admin-role=admin`:
+  - internal -> `200`
+  - public -> `200`
+- Успешный ответ содержит `Cache-Control: no-store`.
+### Gate update
+- Web/app admin RBAC blocker: `CLOSED`.
+- Security blocker по open admin route: `CLOSED`.
+- `PHASE 28` временно оставался `BLOCKED` до добора VPN V2 e2e evidence.
+## PHASE 28 — VPN V2 e2e completion re-check
+### Commands
+- Fresh import/connect runtime evidence:
+  - `nekobox_core check -c C:/Users/dgafa/artifacts/phase20_v6/nekobox_client_runtime_test.json`
+  - `nekobox_core run -c ...`
+  - `curl.exe --socks5-hostname 127.0.0.1:2081 --max-time 20 https://www.cloudflare.com/cdn-cgi/trace`
+- Rollback drill (MAIN):
+  - backup env: `/root/backups/peskovp-phase28-vpn-rollback-drill-20260709-144032`
+  - controlled rollback step: `VPN_V2_CANARY_PERCENT 5 -> 2`, restart `api/web-app`, verify health
+  - restore step: `VPN_V2_CANARY_PERCENT 2 -> 5`, restart `api/web-app`, verify health
+- Matrix re-check (legacy/web/vpn/security):
+  - MAIN/RF runtime checks (`systemctl`, `nginx -t`, `xray -test`, `ufw`, `ss`)
+  - public routes/API checks (`app/admin/panel/sub/www`, `api/*`)
+  - VPN V2 internal API (`/v2/nodes`, `/v2/subscription/preview`, `/v2/provisioning/dry-run`)
+  - security checks (`phase26_secret_scan.py`, `Test-NetConnection 5432/6379`, log secret-pattern audit)
+### Results
+- Fresh import/connect: `PASS`:
+  - `probe_exit_code=0`
+  - trace excerpt: `ip=138.16.181.33`, `loc=RU`, `tls=TLSv1.3`
+  - artifact: `artifacts/phase28_v6/20260709-142046/phase28_nekobox_runtime_connect_evidence.txt`
+- Rollback drill: `PASS`:
+  - backup: `/root/backups/peskovp-phase28-vpn-rollback-drill-20260709-144032`
+  - apply state: `canary_percent=2`, `api/web health=ok`
+  - restore state: `canary_percent=5`, `api/web health=ok`
+  - artifact: `artifacts/phase28_v6/20260709-142046/phase28_vpn_rollback_drill_evidence.txt`
+- Matrix re-check summary:
+  - Legacy regression: `PASS`
+  - Web/app: `PASS` (`GET /api/admin/metrics -> 401` без auth)
+  - Telegram/payment security smoke: `PASS` (`400` invalid initData, webhook invalid secret/signature -> `401`)
+  - VPN V2: `PASS` (`nodes`, `policy lanes`, `dry_run_ok`, fresh import/connect, rollback drill)
+  - Security: `PASS` (`DB/Redis closed externally`, `Secret scan: OK`, `SECRET_LOG_HITS_NONE`)
+### Gate update (final)
+- VPN V2 e2e blocker: `CLOSED` (`fresh import/connect`, `rollback drill`).
+- `PHASE 28 = PASSED` (финальная matrix verification completed).
 

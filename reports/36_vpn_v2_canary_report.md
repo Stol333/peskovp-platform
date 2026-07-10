@@ -248,3 +248,29 @@
 - Массовый rollout не включался; legacy grace period сохранён.
 ### Gate decision
 - `PHASE 24`: `PASSED` (step `5%` стабилен).
+## PHASE 29.5 — RF gateway validation refresh
+### Fresh RF runtime status
+- `xray`: `active`
+- `xray run -test`: `Configuration OK`
+- listen sockets: `443/tcp`, `2087/tcp`, `2084/tcp`
+- `ufw`: active, минимальный allowlist (`22`, `443`, `2087`, `2084`)
+- `journalctl -u xray --since 30m`: критичных записей нет (`-- No entries --`)
+### Policy and fallback checks (MAIN internal preview API)
+- `video.yandex.ru` + admin cohort -> `policy_lane=direct`, `canary_lane=v2_canary`
+- `example.org` + admin cohort -> `policy_lane=proxy`, `canary_lane=v2_canary`
+- `protocol=bittorrent` -> `policy_lane=block`, `canary_lane=v2_canary`
+- regular user (`phase20-regular-01`) -> `canary_lane=legacy`, `canary_reason=outside_rollout_bucket`
+### Real client runtime check
+- Клиент: `nekobox_core` (NekoRay/sing-box runtime).
+- Fresh probe через SOCKS (`127.0.0.1:2081`) на рабочем canary-конфиге:
+  - trace `www.cloudflare.com/cdn-cgi/trace` -> `ip=138.16.181.33`, `loc=RU`, `tls=TLSv1.3`
+  - `https://example.org` headers -> `HTTP/1.1 200 OK`
+### Artifacts
+- `reports/43_phase29_rf_gateway_runtime_validation.md`
+- `artifacts/phase29_5/20260709-193643/rf_runtime_raw.txt`
+- `artifacts/phase29_5/20260709-193643/phase29_5_summary.json`
+- `artifacts/phase29_5/20260709-193643/nekobox_cloudflare_trace_phase20cfg.txt`
+- `artifacts/phase29_5/20260709-193643/nekobox_proxy_example_headers_phase20cfg.txt`
+### Gate decision
+- `PHASE 29.5`: `PASSED`
+- Next gate: `PHASE_29_5_PASSED_READY_FOR_PHASE29_6`
