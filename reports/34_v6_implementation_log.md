@@ -2342,3 +2342,731 @@
 - Current gate: `PHASE_27_PASSED_READY_FOR_PHASE29`.
 ### Next
 - Переход к `PHASE 29` (финальный owner summary) с включением remediation evidence в финальный отчёт.
+## PHASE 29.0 — HANDOFF FREEZE AND SOURCE-OF-TRUTH SYNC
+### Read
+- Прочитаны обязательные входы V7:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/35_vpn_v2_test_matrix.md`
+  - `reports/36_vpn_v2_canary_report.md`
+  - `reports/37_port_reclaim_report.md`
+  - `reports/38_final_v6_report.md`
+  - `reports/39_final_v6_execution_report.md`
+  - `handoff_phase27_bundle_20260709-174139/FULL_HANDOFF.md`
+  - `handoff_phase27_bundle_20260709-174139/SERVER_ACTIONS_MAIN_RF.md`
+  - `handoff_phase27_bundle_20260709-174139/BUNDLE_FILE_INDEX.txt`
+### Plan
+- Зафиксировать единый source-of-truth до PHASE 29.1.
+- Снять противоречие между top-checklist и поздними runtime evidence.
+- Отдельно отметить обязательные недостающие входы.
+### Risk check
+- Риск запуска следующих фаз на несинхронных статусах.
+- Риск ложной блокировки из-за исторических меток `BLOCKED` в top-checklist.
+### Backup / rollback check
+- Фаза выполнена без server-side write; backup/rollback операции не требовались.
+### Execute
+- Зафиксирован git source-of-truth:
+  - branch: `fix/phase28-admin-rbac-runtime`
+  - commit: `c1d3948`
+  - tracked local change: `reports/35_vpn_v2_test_matrix.md`
+- Через GitHub MCP подтверждён статус PR `#11`: `open`, `merged=false`.
+- Сформирован локальный инвентарь файлов:
+  - `reports/29_0_file_inventory.txt` (`FILE_INVENTORY_COUNT=11688`).
+- Проверено отсутствие competitor source input:
+  - `Текстовый документ(2).txt` / `Текстовый документ(2)(1).txt` not found.
+- Проверено отсутствие финальных PHASE 29 отчётов:
+  - `reports/51_phase29_final_launch_report.md` not found.
+  - `reports/52_phase29_owner_summary.md` not found.
+### Verify
+- Подтверждено:
+  - `PHASE 27 = PASSED`;
+  - `PHASE 28 = PASSED`;
+  - `PHASE 25 = SKIPPED_WITH_REASON` (owner waiver, без reclaim apply).
+- Зафиксировано reconciliation:
+  - top-checklist `BLOCKED` для `09/10/11/12` помечены как superseded поздними evidence;
+  - `PHASE 03` остаётся input-gap до получения competitor source.
+### Record
+- Созданы/обновлены:
+  - `reports/29_0_file_inventory.txt`
+  - `reports/40_phase29_handoff_reconciliation.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.0 = PASSED`.
+- Current gate: `PHASE_29_0_PASSED_READY_FOR_PHASE29_1`.
+### Next
+- Старт `PHASE 29.1` (fresh read-only production audit MAIN + RF).
+## PHASE 29.1 — FRESH READ-ONLY PRODUCTION AUDIT (MAIN + RF)
+### Read
+- Взяты входы из `reports/40_phase29_handoff_reconciliation.md` и V7 gate-критерии PHASE 29.1.
+### Plan
+- Снять fresh runtime snapshot MAIN и RF без write-операций.
+- Выполнить публичные route/API header checks.
+- Закрыть gate только при полном выполнении обязательных условий V7.
+### Risk check
+- Риск скрытой деградации live-состояния относительно handoff-snapshot.
+- Риск ложного `PASSED` без fresh runtime evidence.
+### Backup / rollback check
+- Фаза read-only; backup/rollback не требуются.
+### Execute
+- Использован `OpenSSH_for_Windows` по абсолютному пути:
+  - `C:/Windows/System32/OpenSSH/ssh.exe`.
+- MAIN read-only snapshot сохранён в:
+  - `artifacts/phase29_1/20260709-184523/main_audit_raw.txt`.
+- RF read-only snapshot сохранён в:
+  - `artifacts/phase29_1/20260709-184523/rf_audit_raw.txt`.
+- Public checks сохранены в:
+  - `artifacts/phase29_1/20260709-184523/public_routes_raw.txt`.
+### Verify
+- MAIN:
+  - `systemctl --failed`: `0 loaded units`.
+  - `systemctl is-active ssh nginx x-ui peskovp-sub peskovp-hy2* fail2ban docker containerd`: все `active`.
+  - `nginx -t`: syntax/config `successful`.
+  - `ufw status`: `active`.
+  - `docker ps`: `web/api` только `127.0.0.1` publish; `postgres/redis` без host publish.
+  - `ss -tulpen`: отсутствуют публичные listeners `:5432/:6379`.
+- RF:
+  - `systemctl --failed`: `0 loaded units`.
+  - `systemctl is-active ssh xray ufw fail2ban`: все `active`.
+  - `xray run -test`: `Configuration OK`.
+  - `ufw status`: `active`.
+- Public routes:
+  - `app=200`, `admin=200`, `api/health=200`, `api/ready=200`, `api/auth/session=200`.
+  - `api/admin/metrics=401` без auth.
+  - `panel=404`, `sub=404`, `www=403`.
+  - redacted subscription probe: `sub/<redacted>=404`.
+### Record
+- Созданы:
+  - `reports/41_phase29_fresh_production_audit.md`
+  - `artifacts/phase29_1/20260709-184523/main_audit_raw.txt`
+  - `artifacts/phase29_1/20260709-184523/rf_audit_raw.txt`
+  - `artifacts/phase29_1/20260709-184523/public_routes_raw.txt`
+### Gate
+- `PHASE 29.1 = PASSED`.
+- Current gate after phase: `PHASE_29_1_PASSED_READY_FOR_PHASE29_2`.
+### Next
+- Переход к `PHASE 29.2` (competitor redacted analysis).
+## PHASE 29.2 — COMPETITOR REDACTED ANALYSIS INPUT CHECK
+### Read
+- Повторно проверены mandatory input paths:
+  - `Текстовый документ(2).txt`
+  - `Текстовый документ(2)(1).txt`
+### Plan
+- При наличии файла выполнить redacted pattern extraction и mapping.
+- При отсутствии — честно зафиксировать блокер входных данных.
+### Risk check
+- Без source-файла есть риск выдумывания competitor patterns, что запрещено V7.
+### Backup / rollback check
+- Фаза read-only; backup/rollback не требуются.
+### Execute
+- Выполнен file search в workspace по обоим mandatory filenames: совпадений нет.
+### Verify
+- Competitor source input отсутствует.
+- Redacted analysis выполнить корректно невозможно без исходного файла.
+### Record
+- Создан:
+  - `reports/42_phase29_competitor_to_peskovp_routing_map.md`
+### Gate
+- `PHASE 29.2 = BLOCKED_WITH_REASON`.
+- Reason: `REQUIRED_INPUT_COMPETITOR_FILE_MISSING`.
+- Current gate: `PHASE_29_2_BLOCKED_REQUIRED_INPUT_COMPETITOR_FILE`.
+### Next
+- Ожидать один из unblock-вариантов:
+  - предоставить competitor source файл;
+  - выдать owner waiver на `SKIPPED_WITH_OWNER_APPROVAL` для PHASE 29.2.
+## PHASE 29.2 — COMPETITOR REDACTED ANALYSIS (UNBLOCKED RE-RUN)
+### Read
+- Использован найденный source-файл:
+  - `C:/Users/dgafa/Downloads/Текстовый документ(2).txt`.
+### Plan
+- Выполнить redaction competitor-конфига.
+- Проверить отсутствие raw secret-полей после redaction.
+- Обновить routing map только паттернами.
+### Risk check
+- Риск утечки competitor credentials при неполной redaction.
+- Риск ложного `PASSED` без явной leak-проверки.
+### Backup / rollback check
+- Фаза локальная и non-destructive; backup/rollback не требуются.
+### Execute
+- Добавлен script:
+  - `infra/scripts/phase29_2_redact_competitor.py`.
+- Выполнен script:
+  - `python C:/Users/dgafa/infra/scripts/phase29_2_redact_competitor.py`.
+- Сгенерированы артефакты:
+  - `reports/redacted/competitor_routing_redacted.json.txt`
+  - `reports/redacted/competitor_routing_summary.json`
+### Verify
+- Leak checks:
+  - `has_raw_uuid_like=false`
+  - `has_non_redacted_address=false`
+  - `has_non_redacted_serverName=false`
+  - `has_non_redacted_path=false`
+  - `has_non_redacted_publicKey=false`
+  - `has_non_redacted_password=false`
+- Ключевые pattern counts:
+  - `burstObservatory=35`
+  - `balancers=36`
+  - `domainStrategy=36`
+  - `xhttp=235`
+  - `grpc=735`
+  - `reality=361`
+  - `trojan=19`
+  - `bittorrent=36`
+  - `domain_ru=36`
+  - `domain_su=36`
+  - `dialerProxy=65`
+  - `loopback=66`
+### Record
+- Обновлены/созданы:
+  - `reports/42_phase29_competitor_to_peskovp_routing_map.md`
+  - `reports/redacted/competitor_routing_redacted.json.txt`
+  - `reports/redacted/competitor_routing_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.2 = PASSED`.
+- Current gate: `PHASE_29_2_PASSED_READY_FOR_PHASE29_3`.
+### Next
+- Переход к `PHASE 29.3` (backup refresh + rollback rehearsal).
+## PHASE 29.3 — BACKUP REFRESH AND ROLLBACK REHEARSAL
+### Read
+- Применены команды и критерии V7 для fresh backup MAIN/RF.
+### Plan
+- Создать новые backup directories на MAIN/RF.
+- Снять конфигурационные и runtime snapshots.
+- Зафиксировать rollback runbook PHASE29.
+### Risk check
+- Риск потери rollback-ready состояния перед следующими write-фазами.
+- Риск неполного backup покрытия (nginx/systemd/xray/firewall/docker state).
+### Backup / rollback check
+- Это фаза подготовки backup, destructive действий не выполнялось.
+### Execute
+- MAIN:
+  - создан backup dir: `/root/backups/peskovp-phase29-prelaunch-main-20260709-162219`
+  - сохранены: `nginx`, `systemd-system`, `fail2ban`, `ufw_status_verbose.txt`, `ss_tulpen.txt`, `running_services.txt`, `docker_ps_a.txt`, `docker_images.txt`, `docker_volumes.txt`, `opt_peskovp_platform.tgz`.
+- RF:
+  - создан backup dir: `/root/backups/peskovp-phase29-prelaunch-rf-20260709-162312`
+  - сохранены: `xray`, `systemd-system`, `fail2ban`, `ufw_status_verbose.txt`, `ss_tulpen.txt`, `running_services.txt`.
+- Локально сохранены reference paths:
+  - `reports/phase29_main_backup_dir.txt`
+  - `reports/phase29_rf_backup_dir.txt`
+- Добавлен rollback runbook:
+  - `infra/rollback/PHASE29_PRODUCTION_ROLLBACK.md`
+### Verify
+- MAIN backup verification:
+  - `HAS_NGINX=1`, `HAS_SYSTEMD=1`, `HAS_FAIL2BAN=1`, `HAS_UFW=1`, `HAS_SS=1`, `HAS_RUNNING=1`, `HAS_DOCKER_PS=1`, `HAS_OPT_TAR=1`
+  - file count: `204`
+- RF backup verification:
+  - `HAS_XRAY=1`, `HAS_SYSTEMD=1`, `HAS_FAIL2BAN=1`, `HAS_UFW=1`, `HAS_SS=1`, `HAS_RUNNING=1`
+  - file count: `178`
+### Record
+- Созданы/обновлены:
+  - `reports/phase29_main_backup_dir.txt`
+  - `reports/phase29_rf_backup_dir.txt`
+  - `infra/rollback/PHASE29_PRODUCTION_ROLLBACK.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.3 = PASSED`.
+- Current gate: `PHASE_29_3_PASSED_READY_FOR_PHASE29_4`.
+### Next
+- Переход к `PHASE 29.4` (VPN/routing foundation finalization).
+## PHASE 29.4 — VPN/ROUTING FOUNDATION FINALIZATION
+### Read
+- Сверены требования V7 для PHASE 29.4 и предыдущие архитектурные документы:
+  - `docs/VPN_V2_ARCHITECTURE.md`
+  - `reports/33_vpn_v2_architecture.md`
+### Plan
+- Зафиксировать production-level архитектуру V2 отдельным документом.
+- Подтвердить foundation через свежие Python verify-команды.
+- Закрыть gate только после синхронизации TODO/log статусов.
+### Risk check
+- Риск неявного расхождения между runtime реализацией и архитектурным описанием.
+- Риск перехода к PHASE 29.5 без фиксированного rollback-aware production design.
+### Backup / rollback check
+- Фаза документационная + verify-only, destructive изменений нет.
+- Backup readiness уже закрыт на `PHASE 29.3`.
+### Execute
+- Создан документ:
+  - `docs/VPN_V2_PRODUCTION_ARCHITECTURE.md`
+- В документ зафиксированы:
+  - nodes model: `main-control`, `rf-primary`, `rf-secondary`, `foreign-exit-candidate`;
+  - transport matrix: `VLESS Reality TCP 443`, `XHTTP 2084`, `gRPC 2087 fallback`;
+  - direct/proxy/block routing policies;
+  - health scoring formula;
+  - subscription profile generation модель;
+  - canary ladder `0 -> 1 -> 5 -> 10 -> 25 -> 50 -> 100`;
+  - client compatibility notes и rollback-to-legacy path.
+- Выполнены verify-команды:
+  - `python -m pytest C:/Users/dgafa/packages/vpn-routing/tests -q`
+  - `python -m pytest C:/Users/dgafa/integrations/vpn/tests -q`
+  - `python -m compileall C:/Users/dgafa/packages/vpn-routing/src C:/Users/dgafa/integrations/vpn/src`
+### Verify
+- `python -m pytest ...packages/vpn-routing...` -> `18 passed in 0.06s`.
+- `python -m pytest ...integrations/vpn...` -> `6 passed in 0.03s`.
+- `python -m compileall ...` -> выполнен без syntax errors.
+### Record
+- Обновлены/созданы:
+  - `docs/VPN_V2_PRODUCTION_ARCHITECTURE.md`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.4 = PASSED`.
+- Current gate: `PHASE_29_4_PASSED_READY_FOR_PHASE29_5`.
+### Next
+- Переход к `PHASE 29.5` (RF runtime validation report).
+## PHASE 29.5 — RF GATEWAY VALIDATION AND CONTROLLED ROUTING CANARY
+### Read
+- Сверены критерии V7 для PHASE 29.5:
+  - RF runtime (`xray active`, `xray -test`, ports, `ufw`, logs);
+  - real client runtime connect;
+  - direct/proxy/block checks;
+  - rollback-to-legacy check.
+### Plan
+- Снять свежий RF runtime snapshot.
+- Выполнить internal preview checks для policy lanes и fallback.
+- Подтвердить real client runtime connect в `nekobox_core`.
+- Записать итоги в `reports/43...` и синхронизировать canary report.
+### Risk check
+- Риск ложного `PASSED` при отсутствии живого connect evidence.
+- Риск утечки runtime credentials в логах/отчётах.
+- Риск перехода к следующей фазе без подтверждённого legacy fallback.
+### Backup / rollback check
+- Destructive изменений нет; используется backup-ready контур из PHASE 29.3.
+### Execute
+- Собран RF runtime evidence:
+  - `artifacts/phase29_5/20260709-193643/rf_runtime_raw.txt`.
+- Выполнены policy checks через MAIN internal preview API:
+  - RU-domain admin case;
+  - non-RU admin case;
+  - bittorrent block case;
+  - regular-user fallback case.
+- Снят node score snapshot через `/v2/nodes`.
+- Real runtime check:
+  - `nekobox_core check -c artifacts/phase20_v6/nekobox_client_runtime_test.json`;
+  - runtime probes через SOCKS (`cloudflare trace`, `example.org headers`).
+- Собран сводный артефакт:
+  - `artifacts/phase29_5/20260709-193643/phase29_5_summary.json`.
+- Обновлены отчёты:
+  - `reports/43_phase29_rf_gateway_runtime_validation.md`
+  - `reports/36_vpn_v2_canary_report.md`
+### Verify
+- RF runtime:
+  - `xray active`;
+  - `xray -test = Configuration OK`;
+  - listen `443/2087/2084`;
+  - `ufw active` и ожидаемый allowlist;
+  - `journalctl xray 30m = -- No entries --`.
+- Policy checks:
+  - `ru_direct_admin -> policy_lane=direct`;
+  - `proxy_admin -> policy_lane=proxy`;
+  - `block_bittorrent -> policy_lane=block`;
+  - `regular_legacy_fallback -> canary_lane=legacy`.
+- Node scores присутствуют:
+  - `main-control=100.0`, `rf-primary-tcp=97.05`, `rf-secondary-grpc=91.84`.
+- Real client runtime:
+  - Cloudflare trace через SOCKS: `ip=138.16.181.33`, `loc=RU`, `tls=TLSv1.3`;
+  - `example.org` headers: `HTTP/1.1 200 OK`.
+### Record
+- Созданы/обновлены:
+  - `reports/43_phase29_rf_gateway_runtime_validation.md`
+  - `reports/36_vpn_v2_canary_report.md`
+  - `artifacts/phase29_5/20260709-193643/rf_runtime_raw.txt`
+  - `artifacts/phase29_5/20260709-193643/phase29_5_summary.json`
+  - `artifacts/phase29_5/20260709-193643/nekobox_cloudflare_trace_phase20cfg.txt`
+  - `artifacts/phase29_5/20260709-193643/nekobox_proxy_example_headers_phase20cfg.txt`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.5 = PASSED`.
+- Current gate: `PHASE_29_5_PASSED_READY_FOR_PHASE29_6`.
+### Next
+- Переход к `PHASE 29.6` (foreign exit decision gate).
+## PHASE 29.6 — FOREIGN EXIT DECISION GATE
+### Read
+- Взяты decision-правила из PHASE 29.6 V7.
+- Проверены актуальные runtime входы:
+  - `reports/43_phase29_rf_gateway_runtime_validation.md`
+  - `docs/VPN_V2_PRODUCTION_ARCHITECTURE.md`
+  - `v2/nodes` inventory.
+### Plan
+- Подтвердить факт отсутствия dedicated foreign-exit узла.
+- Снять read-only capacity snapshot MAIN для оценки fallback-варианта.
+- Зафиксировать отдельные статусы для limited launch и premium multi-route обещания.
+### Risk check
+- Риск увеличения blast radius при использовании MAIN как foreign-exit по умолчанию.
+- Риск product overpromise без реального non-RU exit узла.
+### Backup / rollback check
+- Decision-only фаза; изменений инфраструктуры не было.
+### Execute
+- Собраны артефакты:
+  - `artifacts/phase29_6/20260710-124052/main_foreign_exit_capacity_raw.txt`
+  - `artifacts/phase29_6/20260710-124052/main_ss_tuln_raw.txt`
+  - `artifacts/phase29_6/20260710-124052/v2_nodes_snapshot.json`
+  - `artifacts/phase29_6/20260710-124052/phase29_6_summary.json`
+- Сформирован отчёт:
+  - `reports/44_phase29_foreign_exit_decision.md`
+### Verify
+- Node inventory: только `main-control`, `rf-primary-tcp`, `rf-secondary-grpc`; dedicated foreign-exit отсутствует.
+- MAIN snapshot:
+  - low load (`0.14/0.12/0.08`), свободная память/диск достаточны;
+  - критичные сервисы активны;
+  - портовый профиль подтверждает критичную роль edge/legacy host.
+- Decision:
+  - `REQUIRED_INPUT_NOT_BLOCKING_FOR_LIMITED_LAUNCH`
+  - `BLOCKING_FOR_PREMIUM_MULTI_ROUTE`
+  - `MAIN-as-exit = NOT_APPROVED_BY_DEFAULT`
+### Record
+- Обновлены/созданы:
+  - `reports/44_phase29_foreign_exit_decision.md`
+  - `artifacts/phase29_6/20260710-124052/phase29_6_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.6 = PASSED`.
+- Current gate: `PHASE_29_6_PASSED_READY_FOR_PHASE29_7`.
+### Next
+- Переход к `PHASE 29.7` (subscription V2 final validation).
+## PHASE 29.7 — SUBSCRIPTION V2 FINALIZATION AND LEGACY COMPATIBILITY
+### Read
+- Сверены критерии V7 PHASE 29.7 по profiles/legacy/payment semantics.
+- Использованы входы:
+  - `reports/43_phase29_rf_gateway_runtime_validation.md`
+  - `reports/44_phase29_foreign_exit_decision.md`
+  - internal API endpoints (`/api/subscriptions/current`, `/api/vpn/health`, `/v2/*`).
+### Plan
+- Подтвердить legacy-by-default поведение regular users.
+- Подтвердить доступность V2 профилей для canary/admin cohort.
+- Подтвердить dry-run write guards и отсутствие OBFS/BRUTAL mass-profile tokens.
+- Подтвердить payment activation semantics через санитизированный production evidence.
+### Risk check
+- Риск неконтролируемого canary расширения на regular users.
+- Риск скрытого write-path в provisioning.
+- Риск утечки subscription IDs в отчётных артефактах.
+### Backup / rollback check
+- Verify-only фаза; write-инфраструктурных изменений не выполнялось.
+### Execute
+- Созданы артефакты:
+  - `artifacts/phase29_7/20260710-124438/subscription_api_checks.json`
+  - `artifacts/phase29_7/20260710-124438/phase22_payment_activation_sanitized.json`
+  - `artifacts/phase29_7/20260710-124438/phase29_7_summary.json`
+- Сформирован отчёт:
+  - `reports/45_phase29_subscription_v2_validation.md`
+### Verify
+- `subscriptions/current`: `status=inactive`, `profile=legacy`.
+- Admin preview: `canary_lane=v2_canary`, profile bundle включает `v2_canary/v2_auto/v2_mobile_lte/v2_ru_whitelist/v2_premium/v2_rf_gateway/legacy`.
+- Regular preview: `canary_lane=legacy`, `profile_ids=[legacy]`.
+- `v2/provisioning/dry-run`: `status=dry_run_ok`, `write_performed=false`, `dry_run=true`.
+- Disallowed tokens check: `has_obfs_or_brutal=false`.
+- Payment semantics (sanitized phase22 artifacts):
+  - success -> activation true;
+  - failed -> no activation;
+  - renew success -> activation true.
+### Record
+- Обновлены/созданы:
+  - `reports/45_phase29_subscription_v2_validation.md`
+  - `artifacts/phase29_7/20260710-124438/phase29_7_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.7 = PASSED`.
+- Current gate: `PHASE_29_7_PASSED_READY_FOR_PHASE29_8`.
+### Next
+- Переход к `PHASE 29.8` (production app/API/admin verification).
+## PHASE 29.8 — PRODUCTION APP/API/ADMIN VERIFICATION
+### Read
+- Сверены gate-критерии PHASE 29.8 (public routes, RBAC, docker exposure, nginx checks).
+### Plan
+- Выполнить публичные route/API headers checks.
+- Выполнить internal checks MAIN (health/ready/docker/DB/Redis exposure/nginx config).
+- Выполнить RBAC matrix для `/api/admin/metrics` (`401/403/200`).
+### Risk check
+- Риск регрессии admin RBAC в runtime.
+- Риск случайной public публикации data-services.
+- Риск нарушения panel/sub/www baseline.
+### Backup / rollback check
+- Фаза read-only verify; apply/reload не выполнялись.
+### Execute
+- Сформированы raw evidence:
+  - `artifacts/phase29_8/20260710-124741/public_route_checks_raw.txt`
+  - `artifacts/phase29_8/20260710-124741/main_web_api_admin_checks_raw.txt`
+  - `artifacts/phase29_8/20260710-124741/phase29_8_summary.json`
+- Сформирован отчёт:
+  - `reports/46_phase29_web_api_admin_production_validation.md`
+### Verify
+- Public routes:
+  - `app=200`, `admin=200`, `api/health=200`, `api/ready=200`, `api/auth/session=200`, `api/admin/metrics=401`, `panel=404`, `sub=404`, `www=403`.
+- RBAC matrix:
+  - `METRICS_NOAUTH=401`
+  - `METRICS_WRONGROLE=403`
+  - `METRICS_ADMIN=200`
+- Internal web readiness:
+  - `/api/health` healthy
+  - `/api/ready`: `web/api/database/redis=true`
+- Docker/network:
+  - `web-app` и `api` на loopback publish;
+  - `postgres/redis` internal-only;
+  - `NO_PUBLIC_5432_6379_LISTEN`.
+- Nginx:
+  - `nginx -t` successful;
+  - live config содержит `limit_req_zone` и `limit_req` apply lines.
+### Record
+- Обновлены/созданы:
+  - `reports/46_phase29_web_api_admin_production_validation.md`
+  - `artifacts/phase29_8/20260710-124741/phase29_8_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.8 = PASSED`.
+- Current gate: `PHASE_29_8_PASSED_READY_FOR_PHASE29_9`.
+### Next
+- Переход к `PHASE 29.9` (Telegram Mini App and payment production verification).
+## PHASE 29.9 — TELEGRAM MINI APP AND PAYMENT PRODUCTION VERIFICATION
+### Read
+- Взяты критерии PHASE 29.9 по Telegram entry, initData validation, payments, webhook security и activation semantics.
+### Plan
+- Проверить публичные `/telegram-miniapp-v2.html` и `/tg`.
+- Проверить fail-closed для invalid `initData`.
+- Проверить payment create + idempotency replay.
+- Проверить invalid webhook secret/signature -> `401`.
+- Проверить success/failed/renew activation behavior.
+### Risk check
+- Риск ложной activation при failed webhook.
+- Риск open webhook при неверных secret/signature.
+- Риск duplicate side effects без idempotency replay.
+### Backup / rollback check
+- Verify-only фаза; infrastructure apply не выполнялся.
+### Execute
+- Сформированы артефакты:
+  - `artifacts/phase29_9/20260710-125003/telegram_public_routes_raw.txt`
+  - `artifacts/phase29_9/20260710-125003/validate_init_invalid_status.txt`
+  - `artifacts/phase29_9/20260710-125003/validate_init_invalid_body.json`
+  - `artifacts/phase29_9/20260710-125003/payment_telegram_checks_summary.json`
+  - `artifacts/phase29_9/20260710-125003/phase29_9_summary.json`
+- Сформирован отчёт:
+  - `reports/47_phase29_telegram_payment_validation.md`
+### Verify
+- Telegram public routes:
+  - `/telegram-miniapp-v2.html=200`
+  - `/tg=200`
+- Telegram initData:
+  - invalid payload -> `400`, fail-closed.
+- Payment create/idempotency:
+  - first create -> `201`, `idempotencyStatus=new`
+  - replay -> `200`, `idempotencyStatus=replay`
+- Webhook security:
+  - Telegram invalid secret -> `401`
+  - YooKassa invalid signature -> `401`
+- Activation semantics:
+  - success -> `paymentStatus=succeeded`, activation true;
+  - failed -> `paymentStatus=failed`, activation null;
+  - renew success -> activation true;
+  - success replay -> `idempotencyStatus=replay`.
+### Record
+- Обновлены/созданы:
+  - `reports/47_phase29_telegram_payment_validation.md`
+  - `artifacts/phase29_9/20260710-125003/phase29_9_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.9 = PASSED`.
+- Current gate: `PHASE_29_9_PASSED_READY_FOR_PHASE29_10`.
+### Next
+- Переход к `PHASE 29.10` (full E2E payment -> subscription -> client import -> routing).
+## PHASE 29.10 — FULL E2E FLOW (A/B/C/D)
+### Read
+- Сведены результаты фаз:
+  - `PHASE 29.5` (runtime routing evidence),
+  - `PHASE 29.7` (subscription/fallback),
+  - `PHASE 29.9` (Telegram/payment/webhook activation).
+### Plan
+- Зафиксировать полный E2E по сценариям A/B/C/D.
+- Для D выполнить дополнительную fallback simulation проверку тестами.
+### Risk check
+- Риск неполного покрытия одного из ключевых бизнес-сценариев.
+- Риск ложного PASS при отсутствии отдельного evidence для fallback-сценария D.
+### Backup / rollback check
+- Агрегирующая verify-only фаза; write-изменений нет.
+### Execute
+- Сформирован fallback simulation evidence:
+  - `artifacts/phase29_10/20260710-125357/scenario_d_fallback_tests.txt` (`6 passed`).
+- Сформирован consolidated summary:
+  - `artifacts/phase29_10/20260710-125357/phase29_10_summary.json`.
+- Сформирован отчёт:
+  - `reports/48_phase29_full_e2e_flow.md`.
+### Verify
+- Scenario A (new user): `PASS`.
+- Scenario B (renewal): `PASS`.
+- Scenario C (failure): `PASS`.
+- Scenario D (fallback simulation): `PASS`.
+- Overall E2E status: `PASS`.
+### Record
+- Обновлены/созданы:
+  - `reports/48_phase29_full_e2e_flow.md`
+  - `artifacts/phase29_10/20260710-125357/phase29_10_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.10 = PASSED`.
+- Current gate: `PHASE_29_10_PASSED_READY_FOR_PHASE29_11`.
+### Next
+- Переход к `PHASE 29.11` (monitoring/alerting/backup schedule/runbooks).
+## PHASE 29.11 — MONITORING, ALERTING, RUNBOOKS
+### Read
+- Прочитаны требования V7 для operability gate `PHASE 29.11`.
+- Повторно проверены baseline-отчёты `PHASE 29.8-29.10` для списка обязательных monitor-checks.
+### Plan
+- Подготовить owner-readable runbooks по операциям, backup/restore и incident response.
+- Добавить shell scripts для healthcheck/backup/rollback/e2e smoke.
+- Подтвердить синтаксис скриптов.
+### Risk check
+- Риск неоперабельного запуска без формализованных проверок и rollback-процедур.
+### Backup / rollback check
+- Фаза документирует и автоматизирует уже существующий rollback контур; destructive apply не выполнялся.
+### Execute
+- Созданы runbooks:
+  - `docs/OPERATIONS_PHASE29.md`
+  - `docs/BACKUP_RESTORE_PHASE29.md`
+  - `docs/INCIDENT_RESPONSE_PHASE29.md`
+- Созданы scripts:
+  - `infra/scripts/phase29_healthcheck.sh`
+  - `infra/scripts/phase29_backup.sh`
+  - `infra/scripts/phase29_rollback.sh`
+  - `infra/scripts/phase29_e2e_smoke.sh`
+- Сформирован artifact:
+  - `artifacts/phase29_11/20260710-144346/phase29_11_summary.json`
+### Verify
+- Git Bash syntax check для `phase29_*.sh` -> `PASS`.
+- Runbooks покрывают: daily/weekly checks, escalation policy, rollback criteria и reporting hooks.
+### Record
+- Обновлены/созданы:
+  - `docs/OPERATIONS_PHASE29.md`
+  - `docs/BACKUP_RESTORE_PHASE29.md`
+  - `docs/INCIDENT_RESPONSE_PHASE29.md`
+  - `infra/scripts/phase29_healthcheck.sh`
+  - `infra/scripts/phase29_backup.sh`
+  - `infra/scripts/phase29_rollback.sh`
+  - `infra/scripts/phase29_e2e_smoke.sh`
+  - `artifacts/phase29_11/20260710-144346/phase29_11_summary.json`
+### Gate
+- `PHASE 29.11 = PASSED`.
+- Current gate: `PHASE_29_11_PASSED_READY_FOR_PHASE29_12`.
+### Next
+- Переход к `PHASE 29.12` (controlled rollout decision).
+## PHASE 29.12 — CONTROLLED ROLLOUT DECISION
+### Read
+- Прочитаны критерии rollout ladder и stability checks из V7.
+- Использованы результаты фаз `29.8-29.11` и свежие runtime inputs.
+### Plan
+- Проверить стабильность canary-состояния.
+- Проверить support burden.
+- Принять честное решение без эскалации к `100%`.
+### Risk check
+- Риск преждевременной эскалации без достаточного окна наблюдения.
+- Риск деградации legacy-контуров.
+### Backup / rollback check
+- Backup/rollback контур готов (`PHASE 29.3`, `PHASE 29.11` runbooks/scripts).
+### Execute
+- Сформирован runtime snapshot:
+  - `artifacts/phase29_12/20260710-144406/rollout_inputs_raw.txt`
+- Через GitHub MCP собран support snapshot:
+  - `artifacts/phase29_12/20260710-144406/github_mcp_snapshot.json`
+- Сформирован summary:
+  - `artifacts/phase29_12/20260710-144406/phase29_12_summary.json`
+- Сформирован отчёт:
+  - `reports/49_phase29_rollout_decision.md`
+### Verify
+- Runtime/status:
+  - `canary_percent=5`
+  - `legacy=healthy`
+  - `v2Canary=ready_for_admin_test`
+  - `API/WEB/NGINX errors (20m)=0`
+- Support burden:
+  - `open_issues=0`
+  - `open_prs=2`
+- Decision:
+  - `LIMITED_CANARY_5_HOLD` (без эскалации >`5%` в этом gate).
+### Record
+- Обновлены/созданы:
+  - `reports/49_phase29_rollout_decision.md`
+  - `artifacts/phase29_12/20260710-144406/github_mcp_snapshot.json`
+  - `artifacts/phase29_12/20260710-144406/phase29_12_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.12 = PASSED`.
+- Current gate: `PHASE_29_12_PASSED_READY_FOR_PHASE29_13`.
+### Next
+- Переход к `PHASE 29.13` (port reclamation decision only).
+## PHASE 29.13 — PORT RECLAMATION DECISION (NO EXECUTION)
+### Read
+- Повторно прочитаны требования V7 для dangerous reclaim-step.
+- Использованы `reports/37_port_reclaim_report.md` и latest PHASE 25 monitoring summary.
+### Plan
+- Провести decision-only оценку и зафиксировать безопасный outcome.
+- Не выполнять reclaim apply.
+### Risk check
+- Риск сломать legacy user connectivity при преждевременном отключении портов.
+### Backup / rollback check
+- Reclaim execution не запускался; backup/rollback готовность сохранена для будущего отдельного шага.
+### Execute
+- Сформирован summary:
+  - `artifacts/phase29_13/20260710-144759/phase29_13_summary.json`
+- Сформирован отчёт:
+  - `reports/50_phase29_port_reclaim_decision.md`
+### Verify
+- Решение:
+  - `NO_RECLAIM_YET`
+- Подтверждено:
+  - reclaim-step исторически не выполнялся;
+  - owner waiver PHASE 25 не равен фактическому reclaim execute;
+  - в текущем gate destructive reclaim запрещён.
+### Record
+- Обновлены/созданы:
+  - `reports/50_phase29_port_reclaim_decision.md`
+  - `artifacts/phase29_13/20260710-144759/phase29_13_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.13 = PASSED`.
+- Current gate: `PHASE_29_13_PASSED_READY_FOR_PHASE29_14`.
+### Next
+- Переход к `PHASE 29.14` (final launch report + owner summary).
+## PHASE 29.14 — FINAL LAUNCH REPORT + OWNER SUMMARY
+### Read
+- Прочитаны требования A–P + owner summary format из V7.
+- Сведены результаты `reports/40 ... reports/50`.
+### Plan
+- Сформировать итоговые отчёты `reports/51` и `reports/52`.
+- Дать честный финальный статус launch readiness.
+### Risk check
+- Риск ложного `READY` без dedicated foreign-exit и без rollout/reclaim completion.
+### Backup / rollback check
+- Backup/rollback контур документирован и доступен для owner operations.
+### Execute
+- Сформированы финальные отчёты:
+  - `reports/51_phase29_final_launch_report.md`
+  - `reports/52_phase29_owner_summary.md`
+- Сформирован summary:
+  - `artifacts/phase29_14/20260710-144759/phase29_14_summary.json`
+### Verify
+- Финальный статус:
+  - `PARTIAL_READY`
+- Причины partial:
+  - dedicated foreign-exit отсутствует для premium multi-route;
+  - rollout зафиксирован на `5%`;
+  - port reclaim остаётся `NO_RECLAIM_YET`.
+- Все обязательные PHASE 29 deliverables присутствуют (`reports/40 ... reports/52`).
+### Record
+- Обновлены/созданы:
+  - `reports/51_phase29_final_launch_report.md`
+  - `reports/52_phase29_owner_summary.md`
+  - `artifacts/phase29_14/20260710-144759/phase29_14_summary.json`
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+### Gate
+- `PHASE 29.14 = PASSED`.
+- `PHASE 29 = PASSED`.
+- Current gate: `PHASE_29_PASSED_FINAL_OWNER_SUMMARY_COMPLETE`.
+### Next
+- Запустить следующий отдельный roadmap-step: foreign-exit deployment planning + criteria-based rollout escalation review.

@@ -1,11 +1,11 @@
 # 39 Final V6 Execution Report
 ## Статус документа
-- State: `PHASE_27_PASSED_PHASE_28_PASSED`
-- Текущий активный gate: `PHASE_27_PASSED_READY_FOR_PHASE29`
-- Финальный статус документа будет выставлен только после закрытия `PHASE 29`.
+- State: `PHASE_29_PASSED_FINAL_OWNER_SUMMARY_COMPLETE`
+- Текущий активный gate: `PHASE_29_PASSED_FINAL_OWNER_SUMMARY_COMPLETE`
+- Финальный production статус: `PARTIAL_READY`.
 ## Назначение
 - Обязательный итоговый артефакт V6-цикла `PHASE 00-29`.
-- На этапе `PHASE 27` используется как рабочий реестр `Security Review`.
+- Источник итогового статуса после закрытия PHASE 29 с ссылками на финальные launch-отчёты.
 ## Security Review (PHASE 27 checkpoint)
 ### 1) SSH hardening
 - Status: `PASSED`
@@ -137,16 +137,37 @@
 - Burst-check `https://api.peskovp.com/api/admin/metrics` дал смесь `401` и `503`, что подтверждает фактическое срабатывание rate-limit.
 ### Gate outcome
 - `PHASE 27 = PASSED`.
-## Предварительная структура финального отчёта
+## Финальная сводка после закрытия PHASE 29
 ### A. Что было сделано
-- `TBD (после закрытия PHASE 29)`
+- Закрыты PHASE `29.0-29.14` по gate-модели.
+- Сформированы и зафиксированы `reports/49_phase29_rollout_decision.md`, `reports/50_phase29_port_reclaim_decision.md`, `reports/51_phase29_final_launch_report.md`, `reports/52_phase29_owner_summary.md`.
+- Финальный gate синхронизирован в `TODO_PLAN_V6_EXECUTION.md` и `reports/34_v6_implementation_log.md`.
 ### B. Какие файлы изменены
-- `TBD (после закрытия PHASE 29)`
+- Базовые source-of-truth:
+  - `TODO_PLAN_V6_EXECUTION.md`
+  - `reports/34_v6_implementation_log.md`
+  - `reports/39_final_v6_execution_report.md`
+- Финальные launch-отчёты:
+  - `reports/49_phase29_rollout_decision.md`
+  - `reports/50_phase29_port_reclaim_decision.md`
+  - `reports/51_phase29_final_launch_report.md`
+  - `reports/52_phase29_owner_summary.md`
 ### C. Какие команды запускались
-- `TBD (после закрытия PHASE 29)`
+- Runtime evidence snapshot для PHASE 29.12 (MAIN health/error window).
+- GitHub MCP выборки open PR/open issue для support-burden decision evidence.
+- Consistency checks:
+  - `python infra/scripts/phase26_validate_docs_report_consistency.py` (`OK`).
 ### D. Как проверить результат
-- `TBD (после закрытия PHASE 29)`
+- Проверить финальные отчёты `reports/49 ... reports/52`.
+- Проверить финальный gate:
+  - `TODO_PLAN_V6_EXECUTION.md` -> `PHASE_29_PASSED_FINAL_OWNER_SUMMARY_COMPLETE`.
+- Прогнать:
+  - `python infra/scripts/phase26_validate_docs_report_consistency.py`.
 ### E. Какие риски остались
-- `TBD (после закрытия PHASE 29)`
+- Нет dedicated foreign-exit input для premium multi-route.
+- Rollout зафиксирован на `5%` (`LIMITED_CANARY_5_HOLD`), эскалация не подтверждена.
+- Port reclaim остаётся `NO_RECLAIM_YET` (destructive apply не выполнялся).
 ### F. Что можно улучшить следующим этапом
-- `TBD (после закрытия PHASE 29)`
+- Подготовить и согласовать отдельный план dedicated foreign-exit node.
+- После дополнительного стабильного окна рассмотреть controlled rollout escalation (`10%+`) по owner approval.
+- Вернуться к single-step reclaim only после отдельного safety-gate.

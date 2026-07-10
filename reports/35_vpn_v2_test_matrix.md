@@ -294,5 +294,39 @@
 ### Gate update
 - Web/app admin RBAC blocker: `CLOSED`.
 - Security blocker по open admin route: `CLOSED`.
-- `PHASE 28` остаётся `BLOCKED` только из-за незакрытых VPN V2 e2e-пунктов (`fresh import/connect`, `rollback drill`).
+- `PHASE 28` временно оставался `BLOCKED` до добора VPN V2 e2e evidence.
+## PHASE 28 — VPN V2 e2e completion re-check
+### Commands
+- Fresh import/connect runtime evidence:
+  - `nekobox_core check -c C:/Users/dgafa/artifacts/phase20_v6/nekobox_client_runtime_test.json`
+  - `nekobox_core run -c ...`
+  - `curl.exe --socks5-hostname 127.0.0.1:2081 --max-time 20 https://www.cloudflare.com/cdn-cgi/trace`
+- Rollback drill (MAIN):
+  - backup env: `/root/backups/peskovp-phase28-vpn-rollback-drill-20260709-144032`
+  - controlled rollback step: `VPN_V2_CANARY_PERCENT 5 -> 2`, restart `api/web-app`, verify health
+  - restore step: `VPN_V2_CANARY_PERCENT 2 -> 5`, restart `api/web-app`, verify health
+- Matrix re-check (legacy/web/vpn/security):
+  - MAIN/RF runtime checks (`systemctl`, `nginx -t`, `xray -test`, `ufw`, `ss`)
+  - public routes/API checks (`app/admin/panel/sub/www`, `api/*`)
+  - VPN V2 internal API (`/v2/nodes`, `/v2/subscription/preview`, `/v2/provisioning/dry-run`)
+  - security checks (`phase26_secret_scan.py`, `Test-NetConnection 5432/6379`, log secret-pattern audit)
+### Results
+- Fresh import/connect: `PASS`:
+  - `probe_exit_code=0`
+  - trace excerpt: `ip=138.16.181.33`, `loc=RU`, `tls=TLSv1.3`
+  - artifact: `artifacts/phase28_v6/20260709-142046/phase28_nekobox_runtime_connect_evidence.txt`
+- Rollback drill: `PASS`:
+  - backup: `/root/backups/peskovp-phase28-vpn-rollback-drill-20260709-144032`
+  - apply state: `canary_percent=2`, `api/web health=ok`
+  - restore state: `canary_percent=5`, `api/web health=ok`
+  - artifact: `artifacts/phase28_v6/20260709-142046/phase28_vpn_rollback_drill_evidence.txt`
+- Matrix re-check summary:
+  - Legacy regression: `PASS`
+  - Web/app: `PASS` (`GET /api/admin/metrics -> 401` без auth)
+  - Telegram/payment security smoke: `PASS` (`400` invalid initData, webhook invalid secret/signature -> `401`)
+  - VPN V2: `PASS` (`nodes`, `policy lanes`, `dry_run_ok`, fresh import/connect, rollback drill)
+  - Security: `PASS` (`DB/Redis closed externally`, `Secret scan: OK`, `SECRET_LOG_HITS_NONE`)
+### Gate update (final)
+- VPN V2 e2e blocker: `CLOSED` (`fresh import/connect`, `rollback drill`).
+- `PHASE 28 = PASSED` (финальная matrix verification completed).
 
